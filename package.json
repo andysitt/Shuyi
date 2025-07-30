@@ -12,7 +12,10 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.10.0",
+    "@google/gemini-cli-core": "^0.1.14",
+    "@google/genai": "^1.11.0",
     "@octokit/rest": "^20.0.0",
+    "@opentelemetry/exporter-jaeger": "^2.0.1",
     "@radix-ui/react-alert-dialog": "^1.1.14",
     "@radix-ui/react-dialog": "^1.1.14",
     "@radix-ui/react-progress": "^1.1.7",

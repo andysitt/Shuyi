@@ -1,110 +1,115 @@
-import { type ClassValue, clsx } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
+import type { Schema } from "@google/genai";
+import { FunctionDefinition } from "openai/resources/shared.mjs";
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
 }
 
 export function formatBytes(bytes: number, decimals = 2): string {
-  if (bytes === 0) return '0 Bytes'
+  if (bytes === 0) return "0 Bytes";
 
-  const k = 1024
-  const dm = decimals < 0 ? 0 : decimals
-  const sizes = ['Bytes', 'KB', 'MB', 'GB']
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ["Bytes", "KB", "MB", "GB"];
 
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
 
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i]
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
 }
 
 export function formatDate(date: string | Date): string {
-  const d = new Date(date)
+  const d = new Date(date);
   return d.toLocaleDateString("zh-CN", {
     year: "numeric",
     month: "long",
     day: "numeric",
-  })
+  });
 }
 
 export function getLanguageFromExtension(filename: string): string {
-  const extension = filename.split('.').pop()?.toLowerCase()
-  
-  const languageMap: Record<string, string> = {
-    'js': 'JavaScript',
-    'jsx': 'JavaScript',
-    'ts': 'TypeScript',
-    'tsx': 'TypeScript',
-    'py': 'Python',
-    'java': 'Java',
-    'cpp': 'C++',
-    'c': 'C',
-    'cs': 'C#',
-    'php': 'PHP',
-    'rb': 'Ruby',
-    'go': 'Go',
-    'rs': 'Rust',
-    'swift': 'Swift',
-    'kt': 'Kotlin',
-    'scala': 'Scala',
-    'html': 'HTML',
-    'css': 'CSS',
-    'scss': 'SCSS',
-    'sass': 'Sass',
-    'less': 'Less',
-    'json': 'JSON',
-    'xml': 'XML',
-    'yaml': 'YAML',
-    'yml': 'YAML',
-    'toml': 'TOML',
-    'md': 'Markdown',
-    'sql': 'SQL',
-    'sh': 'Shell',
-    'bash': 'Bash',
-    'dockerfile': 'Dockerfile',
-    'vue': 'Vue',
-    'svelte': 'Svelte',
-  }
+  const extension = filename.split(".").pop()?.toLowerCase();
 
-  return languageMap[extension || ''] || 'Other'
+  const languageMap: Record<string, string> = {
+    js: "JavaScript",
+    jsx: "JavaScript",
+    ts: "TypeScript",
+    tsx: "TypeScript",
+    py: "Python",
+    java: "Java",
+    cpp: "C++",
+    c: "C",
+    cs: "C#",
+    php: "PHP",
+    rb: "Ruby",
+    go: "Go",
+    rs: "Rust",
+    swift: "Swift",
+    kt: "Kotlin",
+    scala: "Scala",
+    html: "HTML",
+    css: "CSS",
+    scss: "SCSS",
+    sass: "Sass",
+    less: "Less",
+    json: "JSON",
+    xml: "XML",
+    yaml: "YAML",
+    yml: "YAML",
+    toml: "TOML",
+    md: "Markdown",
+    sql: "SQL",
+    sh: "Shell",
+    bash: "Bash",
+    dockerfile: "Dockerfile",
+    vue: "Vue",
+    svelte: "Svelte",
+  };
+
+  return languageMap[extension || ""] || "Other";
 }
 
 export function isValidGitHubUrl(url: string): boolean {
-  const githubUrlPattern = /^(https?:\/\/)?(www\.)?github\.com\/([a-zA-Z0-9-]+)\/([a-zA-Z0-9-_.]+)(\/)?$/
-  return githubUrlPattern.test(url)
+  const githubUrlPattern =
+    /^(https?:\/\/)?(www\.)?github\.com\/([a-zA-Z0-9-]+)\/([a-zA-Z0-9-_.]+)(\/)?$/;
+  return githubUrlPattern.test(url);
 }
 
-export function extractRepoInfoFromUrl(url: string): { owner: string; repo: string } | null {
-  const match = url.match(/github\.com\/([^\/]+)\/([^\/]+)/)
+export function extractRepoInfoFromUrl(
+  url: string
+): { owner: string; repo: string } | null {
+  const match = url.match(/github\.com\/([^\/]+)\/([^\/]+)/);
   if (match) {
     return {
       owner: match[1],
-      repo: match[2].replace(/\.git$/, '')
-    }
+      repo: match[2].replace(/\.git$/, ""),
+    };
   }
-  return null
+  return null;
 }
 
 export function debounce<T extends (...args: any[]) => any>(
   func: T,
   wait: number
 ): (...args: Parameters<T>) => void {
-  let timeout: NodeJS.Timeout | null = null
+  let timeout: NodeJS.Timeout | null = null;
 
   return (...args: Parameters<T>) => {
     if (timeout) {
-      clearTimeout(timeout)
+      clearTimeout(timeout);
     }
-    timeout = setTimeout(() => func(...args), wait)
-  }
+    timeout = setTimeout(() => func(...args), wait);
+  };
 }
 
 export function truncateText(text: string, maxLength: number): string {
-  if (text.length <= maxLength) return text
-  return text.slice(0, maxLength) + "..."
+  if (text.length <= maxLength) return text;
+  return text.slice(0, maxLength) + "...";
 }
 
 export function copyToClipboard(text: string): Promise<void> {
-  return navigator.clipboard.writeText(text)
+  return navigator.clipboard.writeText(text);
 }
 
 export function groupBy<T, K extends keyof any>(
@@ -112,13 +117,13 @@ export function groupBy<T, K extends keyof any>(
   key: (item: T) => K
 ): Record<K, T[]> {
   return array.reduce((result, item) => {
-    const group = key(item)
+    const group = key(item);
     if (!result[group]) {
-      result[group] = []
+      result[group] = [];
     }
-    result[group].push(item)
-    return result
-  }, {} as Record<K, T[]>)
+    result[group].push(item);
+    return result;
+  }, {} as Record<K, T[]>);
 }
 
 export function sortBy<T, K extends keyof T>(
@@ -127,11 +132,45 @@ export function sortBy<T, K extends keyof T>(
   order: "asc" | "desc" = "asc"
 ): T[] {
   return [...array].sort((a, b) => {
-    const aVal = a[key]
-    const bVal = b[key]
-    
-    if (aVal < bVal) return order === "asc" ? -1 : 1
-    if (aVal > bVal) return order === "asc" ? 1 : -1
-    return 0
-  })
+    const aVal = a[key];
+    const bVal = b[key];
+
+    if (aVal < bVal) return order === "asc" ? -1 : 1;
+    if (aVal > bVal) return order === "asc" ? 1 : -1;
+    return 0;
+  });
+}
+
+/**
+ * Converts a Google GenAI Schema object to an OpenAI-style FunctionDefinition.
+ *
+ * @param name - The name of the function.
+ * @param schema - The Google GenAI Schema object to convert.
+ * @param strict - Whether to enable strict schema adherence.
+ * @returns The converted FunctionDefinition object.
+ */
+export function convertSchemaToFunctionDefinition(
+  name: string,
+  schema: Schema,
+  strict: boolean = false
+): FunctionDefinition {
+  // Process properties to lowercase 'type' string values
+  const processedProperties = schema.properties
+    ? Object.fromEntries(
+        Object.entries(schema.properties).map(([key, value]) => {
+          let newVaule = { type: value.type?.toString(), ...value };
+          if (value.type) {
+            newVaule.type = value.type?.toLocaleLowerCase();
+          }
+          return [key, newVaule];
+        })
+      )
+    : undefined;
+
+  return {
+    name,
+    description: schema.description,
+    parameters: processedProperties,
+    strict: strict || null,
+  };
 }

@@ -22,7 +22,7 @@ export interface RepositoryStructure {
 
 export interface FileNode {
   name: string;
-  type: 'file' | 'directory';
+  type: "file" | "directory";
   path: string;
   size: number;
   language?: string;
@@ -31,7 +31,7 @@ export interface FileNode {
 
 export interface KeyFile {
   path: string;
-  type: 'package' | 'config' | 'readme' | 'main';
+  type: "package" | "config" | "readme" | "main";
   description: string;
 }
 
@@ -40,14 +40,14 @@ export interface AnalysisResult {
   metadata: RepositoryMetadata;
   structure: RepositoryStructure;
   dependencies: DependencyInfo[];
-  codeQuality: CodeQualityMetrics;
+  // codeQuality: CodeQualityMetrics;
   llmInsights: LLMInsights;
 }
 
 export interface DependencyInfo {
   name: string;
   version: string;
-  type: 'production' | 'development' | 'peer';
+  type: "production" | "development" | "peer";
   description?: string;
 }
 
@@ -71,7 +71,7 @@ export interface FileComplexity {
 
 export interface SecurityIssue {
   type: string;
-  severity: 'low' | 'medium' | 'high';
+  severity: "low" | "medium" | "high";
   file: string;
   line?: number;
   description: string;
@@ -96,7 +96,7 @@ export interface LLMTool {
 
 export interface ToolParameter {
   name: string;
-  type: 'string' | 'number' | 'boolean' | 'array';
+  type: "string" | "number" | "boolean" | "array";
   description: string;
   required: boolean;
 }
@@ -135,7 +135,7 @@ export interface ApiResponse<T> {
 
 export interface AnalysisRequest {
   repositoryUrl: string;
-  analysisType?: 'full' | 'structure' | 'quality' | 'documentation';
+  analysisType?: "full" | "structure" | "quality" | "documentation";
 }
 
 // 文档生成类型
@@ -146,7 +146,7 @@ export interface DocumentationSection {
 }
 
 export interface DocumentationOptions {
-  format: 'markdown' | 'html' | 'pdf';
+  format: "markdown" | "html" | "pdf";
   includeCode: boolean;
   includeDiagrams: boolean;
 }
