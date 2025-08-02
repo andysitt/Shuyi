@@ -330,7 +330,7 @@ export class LLMClient {
             // 已完成分析，进入总结阶段
             messages.push({
               role: "user",
-              content: `请将所有的分析汇总成一份完善的文档，并保存到${this.repositoryPath}路径下
+              content: `请将所有的分析汇总成一份完善的文档,
                 注意不要遗漏任何信息，并且可以补充你认为必要的内容，以markdown格式输出。
                 回复内容不要包含文档之外的任何信息`,
             });

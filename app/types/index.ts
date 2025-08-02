@@ -38,6 +38,9 @@ export interface KeyFile {
 // 分析结果类型
 export interface AnalysisResult {
   metadata: RepositoryMetadata;
+  structure: RepositoryStructure;
+  dependencies: DependencyInfo[];
+  codeQuality: CodeQualityMetrics;
   llmInsights: string;
 }
 

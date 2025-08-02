@@ -5,9 +5,10 @@ import {
   AnalysisResult,
   RepositoryMetadata,
   RepositoryStructure,
+  DependencyInfo,
+  CodeQualityMetrics,
+  LLMInsights,
 } from "@/app/types";
-import fs from "fs-extra";
-import path from "path";
 
 // 分析配置
 export interface AnalysisConfig {
@@ -82,7 +83,7 @@ export class AnalysisOrchestrator {
   private async performLLMAnalysis(
     repositoryPath: string,
     repositoryUrl: string
-  ) {
+  ): Promise<string> {
     const cacheKey = `ai_analysis_${repositoryUrl}`;
     let llmInsights = await cacheManager.get(cacheKey);
 
@@ -100,8 +101,42 @@ export class AnalysisOrchestrator {
     metadata: RepositoryMetadata,
     llmInsights: string
   ): Promise<AnalysisResult> {
+    // 创建默认的结构信息
+    const structure: RepositoryStructure = {
+      root: {
+        name: metadata.name,
+        type: "directory",
+        path: ".",
+        size: metadata.size,
+      },
+      totalFiles: 0,
+      totalDirectories: 0,
+      languages: { [metadata.language]: metadata.size },
+      keyFiles: [],
+    };
+
+    // 创建默认的依赖信息
+    const dependencies: DependencyInfo[] = Object.entries(
+      metadata.topics || {}
+    ).map(([name, version]) => ({
+      name,
+      version: version as string,
+      type: "production",
+    }));
+
+    // 创建默认的代码质量指标
+    const codeQuality: CodeQualityMetrics = {
+      complexity: { average: 0, max: 0, files: [] },
+      duplication: 0,
+      maintainability: 0,
+      securityIssues: [],
+    };
+
     return {
       metadata,
+      structure,
+      dependencies,
+      codeQuality,
       llmInsights,
     };
   }

@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { GitHubClient } from "@/app/lib/github-client";
 import { AnalysisOrchestrator } from "@/app/lib/analysis-orchestrator";
 import { cacheManager, tempManager } from "@/app/lib/cache-manager";
-import { AnalysisRequest } from "@/app/types";
+import { DatabaseAccess } from "@/app/lib/db-access";
+import { AnalysisRequest, AnalysisResult } from "@/app/types";
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,136 +17,270 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 检查缓存
-    const cacheKey = `analysis:${repositoryUrl}:${analysisType}`;
-    const cached = await cacheManager.get(cacheKey);
-    if (cached) {
-      return NextResponse.json({ success: true, data: cached });
-    }
+    // 创建分析进度记录
+    const progressRecord = await DatabaseAccess.createAnalysisProgress({
+      repositoryUrl,
+      status: "pending",
+      progress: 0,
+      stage: "初始化",
+      details: "正在初始化分析...",
+    });
 
-    // 验证仓库
-    const githubClient = new GitHubClient();
-    const validation = await githubClient.validateRepository(repositoryUrl);
+    const progressId = progressRecord.id.toString();
 
-    if (!validation.isValid) {
-      return NextResponse.json(
-        { success: false, error: validation.error },
-        { status: validation.error?.includes("未找到") ? 404 : 400 }
-      );
-    }
+    // 更新进度
+    const updateProgress = async (
+      progress: number,
+      stage: string,
+      details?: string
+    ) => {
+      await DatabaseAccess.updateAnalysisProgress(parseInt(progressId), {
+        progress,
+        stage,
+        details,
+        status: "analyzing",
+      });
+    };
 
-    const { owner, repo } = validation;
+    // 立即返回进度ID，让前端可以开始轮询
+    // 使用setTimeout异步执行分析过程
+    setTimeout(async () => {
+      try {
+        await updateProgress(5, "验证仓库", "正在验证仓库有效性...");
 
-    // 获取仓库元数据
-    const metadata = await githubClient.getRepositoryMetadata(owner!, repo!);
+        // 检查缓存
+        const cacheKey = `analysis:${repositoryUrl}:${analysisType}`;
+        const cached = await cacheManager.get(cacheKey);
+        if (cached) {
+          await updateProgress(100, "完成", "分析完成");
+          await DatabaseAccess.updateAnalysisProgress(parseInt(progressId), {
+            status: "completed",
+            progress: 100,
+            stage: "完成",
+            details: "分析完成",
+          });
 
-    // 创建临时目录
-    const tempDir = tempManager.createTempDirectory();
+          // 保存到数据库
+          const metadata = cached.metadata;
+          const dbResult = {
+            repositoryUrl,
+            owner: metadata.owner,
+            repo: metadata.name,
+            metadata,
+            structure: cached.structure || {
+              root: {
+                name: metadata.name,
+                type: "directory" as const,
+                path: ".",
+                size: metadata.size,
+              },
+              totalFiles: 0,
+              totalDirectories: 0,
+              languages: { [metadata.language]: metadata.size },
+              keyFiles: [],
+            },
+            dependencies:
+              cached.dependencies ||
+              Object.entries(metadata.topics || {}).map(([name, version]) => ({
+                name,
+                version: version as string,
+                type: "production" as const,
+              })),
+            codeQuality: cached.codeQuality || {
+              complexity: { average: 0, max: 0, files: [] },
+              duplication: 0,
+              maintainability: 0,
+              securityIssues: [],
+            },
+            llmInsights: cached.llmInsights || {},
+            status: "completed" as const,
+          };
+          await DatabaseAccess.saveAnalysisResult(dbResult);
 
-    try {
-      // 克隆仓库
-      await githubClient.cloneRepository(repositoryUrl, tempDir);
-
-      // 配置LLM分析
-      if (!process.env.LLM_API_KEY) {
-        return NextResponse.json(
-          { success: false, error: "LLM API密钥未配置，请设置 LLM_API_KEY" },
-          { status: 500 }
-        );
-      }
-
-      const llmConfig = {
-        provider: (process.env.LLM_PROVIDER || "openai") as
-          | "openai"
-          | "anthropic"
-          | "custom",
-        apiKey: process.env.LLM_API_KEY,
-        model: process.env.LLM_MODEL || "gpt-4",
-        baseURL: process.env.LLM_BASE_URL || undefined,
-      };
-
-      const orchestrator = new AnalysisOrchestrator(
-        {
-          llmConfig,
-          analysisType: analysisType as any,
-          maxFilesToAnalyze: 15,
-          includePatterns: ["**/*.{js,ts,py,java,go,rs,php,rb}"],
-          excludePatterns: [
-            "node_modules/**",
-            ".git/**",
-            "dist/**",
-            "build/**",
-            "*.min.*",
-          ],
-        },
-        tempDir
-      );
-
-      // 执行深度分析
-      const result = await orchestrator.analyzeRepository(
-        repositoryUrl,
-        tempDir,
-        metadata,
-        (progress) => {
-          console.log(`分析进度: ${progress.stage} (${progress.progress}%)`);
+          return;
         }
-      );
 
-      // 缓存结果
-      await cacheManager.set(cacheKey, result, 3600); // 1小时缓存
+        await updateProgress(10, "验证仓库", "正在验证仓库有效性...");
 
-      return NextResponse.json({ success: true, data: result });
-    } catch (error) {
-      console.error("LLM分析错误:", error);
+        // 验证仓库
+        const githubClient = new GitHubClient();
+        const validation = await githubClient.validateRepository(repositoryUrl);
 
-      // 如果LLM失败，返回基础分析
-      const basicResult = {
-        metadata,
-        structure: {
-          root: {
-            name: repo,
-            type: "directory",
-            path: ".",
-            size: metadata.size,
-          },
-          totalFiles: 0,
-          totalDirectories: 0,
-          languages: { [metadata.language]: metadata.size },
-          keyFiles: [],
-        },
-        dependencies: Object.entries(metadata.topics || {}).map(
-          ([name, version]) => ({
-            name,
-            version: version as string,
-            type: "production" as const,
-          })
-        ),
-        codeQuality: {
-          complexity: { average: 0, max: 0, files: [] },
-          duplication: 0,
-          maintainability: 0,
-          securityIssues: [],
-        },
-        llmInsights: {
-          architecture: "LLM分析暂时不可用",
-          keyPatterns: [],
-          potentialIssues: ["LLM服务配置问题"],
-          recommendations: [
-            "检查OPENAI_API_KEY或ANTHROPIC_API_KEY环境变量",
-            "确保API密钥有效且有足够配额",
-            "检查网络连接和API服务状态",
-          ],
-          technologyStack: [metadata.language],
-          codeQuality: "未分析",
-        },
-      };
+        if (!validation.isValid) {
+          await DatabaseAccess.updateAnalysisProgress(parseInt(progressId), {
+            status: "failed",
+            details: validation.error,
+          });
+          return;
+        }
 
-      await cacheManager.set(cacheKey, basicResult, 1800); // 30分钟缓存
-      return NextResponse.json({ success: true, data: basicResult });
-    } finally {
-      // 清理临时目录
-      await tempManager.cleanupTempDirectory(tempDir);
-    }
+        const { owner, repo } = validation;
+        await updateProgress(15, "获取元数据", "正在获取仓库元数据...");
+
+        // 获取仓库元数据
+        const metadata = await githubClient.getRepositoryMetadata(
+          owner!,
+          repo!
+        );
+        await updateProgress(20, "克隆仓库", "正在克隆仓库...");
+
+        // 创建临时目录
+        const tempDir = tempManager.createTempDirectory();
+
+        try {
+          // 克隆仓库
+          await githubClient.cloneRepository(repositoryUrl, tempDir);
+          await updateProgress(30, "配置分析", "正在配置AI分析...");
+
+          // 配置LLM分析
+          if (!process.env.LLM_API_KEY) {
+            await DatabaseAccess.updateAnalysisProgress(parseInt(progressId), {
+              status: "failed",
+              details: "LLM API密钥未配置，请设置 LLM_API_KEY",
+            });
+            return;
+          }
+
+          const llmConfig = {
+            provider: (process.env.LLM_PROVIDER || "openai") as
+              | "openai"
+              | "anthropic"
+              | "custom",
+            apiKey: process.env.LLM_API_KEY,
+            model: process.env.LLM_MODEL || "gpt-4",
+            baseURL: process.env.LLM_BASE_URL || undefined,
+          };
+
+          const orchestrator = new AnalysisOrchestrator(
+            {
+              llmConfig,
+              analysisType: analysisType as any,
+              maxFilesToAnalyze: 15,
+              includePatterns: ["**/*.{js,ts,py,java,go,rs,php,rb}"],
+              excludePatterns: [
+                "node_modules/**",
+                ".git/**",
+                "dist/**",
+                "build/**",
+                "*.min.*",
+              ],
+            },
+            tempDir
+          );
+
+          // 执行深度分析
+          const result: AnalysisResult = await orchestrator.analyzeRepository(
+            repositoryUrl,
+            tempDir,
+            metadata,
+            async (progress) => {
+              // 更新进度
+              await updateProgress(
+                30 + Math.round(progress.progress * 0.6),
+                progress.stage,
+                progress.details
+              );
+            }
+          );
+
+          await updateProgress(95, "保存结果", "正在保存分析结果...");
+
+          // 缓存结果
+          await cacheManager.set(cacheKey, result, 3600); // 1小时缓存
+
+          // 保存到数据库
+          const dbResult = {
+            repositoryUrl,
+            owner: metadata.owner,
+            repo: metadata.name,
+            metadata,
+            structure: result.structure,
+            dependencies: result.dependencies,
+            codeQuality: result.codeQuality,
+            llmInsights: result.llmInsights,
+            status: "completed" as const,
+          };
+          await DatabaseAccess.saveAnalysisResult(dbResult);
+
+          await updateProgress(100, "完成", "分析完成");
+          await DatabaseAccess.updateAnalysisProgress(parseInt(progressId), {
+            status: "completed",
+            progress: 100,
+            stage: "完成",
+            details: "分析完成",
+          });
+        } catch (error) {
+          console.error("LLM分析错误:", error);
+          await DatabaseAccess.updateAnalysisProgress(parseInt(progressId), {
+            status: "failed",
+            details: error instanceof Error ? error.message : "分析失败",
+          });
+
+          // 如果LLM失败，返回基础分析
+          const basicResult: AnalysisResult = {
+            metadata,
+            structure: {
+              root: {
+                name: repo || metadata.name,
+                type: "directory",
+                path: ".",
+                size: metadata.size,
+              },
+              totalFiles: 0,
+              totalDirectories: 0,
+              languages: { [metadata.language]: metadata.size },
+              keyFiles: [],
+            },
+            dependencies: Object.entries(metadata.topics || {}).map(
+              ([name, version]) => ({
+                name,
+                version: version as string,
+                type: "production",
+              })
+            ),
+            codeQuality: {
+              complexity: { average: 0, max: 0, files: [] },
+              duplication: 0,
+              maintainability: 0,
+              securityIssues: [],
+            },
+            llmInsights: "LLM分析暂时不可用",
+          };
+
+          await cacheManager.set(cacheKey, basicResult, 1800); // 30分钟缓存
+
+          // 保存基础结果到数据库
+          const dbResult = {
+            repositoryUrl,
+            owner: metadata.owner,
+            repo: metadata.name,
+            metadata,
+            structure: basicResult.structure,
+            dependencies: basicResult.dependencies,
+            codeQuality: basicResult.codeQuality,
+            llmInsights: basicResult.llmInsights,
+            status: "completed" as const,
+          };
+          await DatabaseAccess.saveAnalysisResult(dbResult);
+        } finally {
+          // 清理临时目录
+          await tempManager.cleanupTempDirectory(tempDir);
+        }
+      } catch (error) {
+        console.error("分析错误:", error);
+        await DatabaseAccess.updateAnalysisProgress(parseInt(progressId), {
+          status: "failed",
+          details: error instanceof Error ? error.message : "分析失败",
+        });
+      }
+    }, 0);
+
+    // 立即返回进度ID
+    return NextResponse.json({
+      success: true,
+      analysisId: progressId,
+      message: "分析已启动",
+    });
   } catch (error) {
     console.error("分析错误:", error);
     return NextResponse.json(
