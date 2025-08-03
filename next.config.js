@@ -9,6 +9,12 @@ const nextConfig = {
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
     REDIS_URL: process.env.REDIS_URL,
   },
-}
+  webpack(config) {
+    config.resolve.fallback = {
+      path: require.resolve('path-browserify'),
+    };
+    return config;
+  },
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;

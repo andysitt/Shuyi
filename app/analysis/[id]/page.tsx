@@ -1,17 +1,16 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { AnalysisResults } from "@/app/components/AnalysisResults";
-import { Button } from "@/app/components/ui/button";
+import { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { AnalysisResults } from '@/app/components/AnalysisResults';
+import { Button } from '@/app/components/ui/button';
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-} from "@/app/components/ui/card";
-import { ArrowLeft, RefreshCw, Share2 } from "lucide-react";
-import { DatabaseAccess } from "@/app/lib/db-access";
+} from '@/app/components/ui/card';
+import { ArrowLeft, RefreshCw, Share2 } from 'lucide-react';
 
 export default function AnalysisDetailPage() {
   const [analysisData, setAnalysisData] = useState<any>(null);
@@ -39,17 +38,17 @@ export default function AnalysisDetailPage() {
       if (data.success) {
         setAnalysisData(data.data);
       } else {
-        throw new Error(data.error || "获取分析结果失败");
+        throw new Error(data.error || '获取分析结果失败');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "获取分析结果失败");
+      setError(err instanceof Error ? err.message : '获取分析结果失败');
     } finally {
       setLoading(false);
     }
   };
 
   const handleBack = () => {
-    router.push("/");
+    router.push('/');
   };
 
   const handleReanalyze = async () => {
@@ -58,10 +57,10 @@ export default function AnalysisDetailPage() {
     try {
       // 重新分析
       router.push(
-        `/analyze?url=${encodeURIComponent(analysisData.repositoryUrl)}`
+        `/analyze?url=${encodeURIComponent(analysisData.repositoryUrl)}`,
       );
     } catch (err) {
-      console.error("重新分析失败:", err);
+      console.error('重新分析失败:', err);
     }
   };
 
@@ -70,7 +69,7 @@ export default function AnalysisDetailPage() {
       await navigator.clipboard.writeText(window.location.href);
       // 这里可以添加一个提示，告诉用户链接已复制
     } catch (err) {
-      console.error("复制链接失败:", err);
+      console.error('复制链接失败:', err);
     }
   };
 
