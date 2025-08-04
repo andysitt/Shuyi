@@ -1,73 +1,73 @@
-import { type ClassValue, clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
-import type { Schema } from "@google/genai";
-import { FunctionDefinition } from "openai/resources/shared.mjs";
+import { type ClassValue, clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+import type { Schema } from '@google/genai';
+import { FunctionDefinition } from 'openai/resources/shared.mjs';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
 export function formatBytes(bytes: number, decimals = 2): string {
-  if (bytes === 0) return "0 Bytes";
+  if (bytes === 0) return '0 Bytes';
 
   const k = 1024;
   const dm = decimals < 0 ? 0 : decimals;
-  const sizes = ["Bytes", "KB", "MB", "GB"];
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
 
   const i = Math.floor(Math.log(bytes) / Math.log(k));
 
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 }
 
 export function formatDate(date: string | Date): string {
   const d = new Date(date);
-  return d.toLocaleDateString("zh-CN", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
+  return d.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
   });
 }
 
 export function getLanguageFromExtension(filename: string): string {
-  const extension = filename.split(".").pop()?.toLowerCase();
+  const extension = filename.split('.').pop()?.toLowerCase();
 
   const languageMap: Record<string, string> = {
-    js: "JavaScript",
-    jsx: "JavaScript",
-    ts: "TypeScript",
-    tsx: "TypeScript",
-    py: "Python",
-    java: "Java",
-    cpp: "C++",
-    c: "C",
-    cs: "C#",
-    php: "PHP",
-    rb: "Ruby",
-    go: "Go",
-    rs: "Rust",
-    swift: "Swift",
-    kt: "Kotlin",
-    scala: "Scala",
-    html: "HTML",
-    css: "CSS",
-    scss: "SCSS",
-    sass: "Sass",
-    less: "Less",
-    json: "JSON",
-    xml: "XML",
-    yaml: "YAML",
-    yml: "YAML",
-    toml: "TOML",
-    md: "Markdown",
-    sql: "SQL",
-    sh: "Shell",
-    bash: "Bash",
-    dockerfile: "Dockerfile",
-    vue: "Vue",
-    svelte: "Svelte",
+    js: 'JavaScript',
+    jsx: 'JavaScript',
+    ts: 'TypeScript',
+    tsx: 'TypeScript',
+    py: 'Python',
+    java: 'Java',
+    cpp: 'C++',
+    c: 'C',
+    cs: 'C#',
+    php: 'PHP',
+    rb: 'Ruby',
+    go: 'Go',
+    rs: 'Rust',
+    swift: 'Swift',
+    kt: 'Kotlin',
+    scala: 'Scala',
+    html: 'HTML',
+    css: 'CSS',
+    scss: 'SCSS',
+    sass: 'Sass',
+    less: 'Less',
+    json: 'JSON',
+    xml: 'XML',
+    yaml: 'YAML',
+    yml: 'YAML',
+    toml: 'TOML',
+    md: 'Markdown',
+    sql: 'SQL',
+    sh: 'Shell',
+    bash: 'Bash',
+    dockerfile: 'Dockerfile',
+    vue: 'Vue',
+    svelte: 'Svelte',
   };
 
-  return languageMap[extension || ""] || "Other";
+  return languageMap[extension || ''] || 'Other';
 }
 
 export function isValidGitHubUrl(url: string): boolean {
@@ -77,13 +77,13 @@ export function isValidGitHubUrl(url: string): boolean {
 }
 
 export function extractRepoInfoFromUrl(
-  url: string
+  url: string,
 ): { owner: string; repo: string } | null {
   const match = url.match(/github\.com\/([^\/]+)\/([^\/]+)/);
   if (match) {
     return {
       owner: match[1],
-      repo: match[2].replace(/\.git$/, ""),
+      repo: match[2].replace(/\.git$/, ''),
     };
   }
   return null;
@@ -91,7 +91,7 @@ export function extractRepoInfoFromUrl(
 
 export function debounce<T extends (...args: any[]) => any>(
   func: T,
-  wait: number
+  wait: number,
 ): (...args: Parameters<T>) => void {
   let timeout: NodeJS.Timeout | null = null;
 
@@ -105,7 +105,7 @@ export function debounce<T extends (...args: any[]) => any>(
 
 export function truncateText(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
-  return text.slice(0, maxLength) + "...";
+  return text.slice(0, maxLength) + '...';
 }
 
 export function copyToClipboard(text: string): Promise<void> {
@@ -114,7 +114,7 @@ export function copyToClipboard(text: string): Promise<void> {
 
 export function groupBy<T, K extends keyof any>(
   array: T[],
-  key: (item: T) => K
+  key: (item: T) => K,
 ): Record<K, T[]> {
   return array.reduce((result, item) => {
     const group = key(item);
@@ -129,14 +129,14 @@ export function groupBy<T, K extends keyof any>(
 export function sortBy<T, K extends keyof T>(
   array: T[],
   key: K,
-  order: "asc" | "desc" = "asc"
+  order: 'asc' | 'desc' = 'asc',
 ): T[] {
   return [...array].sort((a, b) => {
     const aVal = a[key];
     const bVal = b[key];
 
-    if (aVal < bVal) return order === "asc" ? -1 : 1;
-    if (aVal > bVal) return order === "asc" ? 1 : -1;
+    if (aVal < bVal) return order === 'asc' ? -1 : 1;
+    if (aVal > bVal) return order === 'asc' ? 1 : -1;
     return 0;
   });
 }
@@ -152,7 +152,7 @@ export function sortBy<T, K extends keyof T>(
 export function convertSchemaToFunctionDefinition(
   name: string,
   schema: Schema,
-  strict: boolean = false
+  strict: boolean = false,
 ): FunctionDefinition {
   // Process properties to lowercase 'type' string values
   const processedProperties = schema.properties
@@ -163,7 +163,7 @@ export function convertSchemaToFunctionDefinition(
             newVaule.type = value.type?.toLocaleLowerCase();
           }
           return [key, newVaule];
-        })
+        }),
       )
     : undefined;
 
@@ -174,3 +174,72 @@ export function convertSchemaToFunctionDefinition(
     strict: strict || null,
   };
 }
+
+type JSONSchema = {
+  [key: string]: any;
+};
+/**
+ * 修复 JSON Schema 中的字符串数字，将它们转换为 number
+ */
+export const fixNumericStrings = (schema: JSONSchema): JSONSchema => {
+  const numericKeywords = new Set([
+    'minimum',
+    'maximum',
+    'exclusiveMinimum',
+    'exclusiveMaximum',
+    'minLength',
+    'maxLength',
+    'minItems',
+    'maxItems',
+    'minProperties',
+    'maxProperties',
+    'multipleOf',
+  ]);
+  if (Array.isArray(schema)) {
+    return schema.map((item) => fixNumericStrings(item));
+  }
+
+  if (typeof schema === 'object' && schema !== null) {
+    const newSchema: JSONSchema = {};
+    for (const key in schema) {
+      let value = schema[key];
+
+      if (
+        numericKeywords.has(key) &&
+        typeof value === 'string' &&
+        !isNaN(Number(value))
+      ) {
+        value = Number(value); // ✅ 转换为数字
+      } else if (typeof value === 'object') {
+        value = fixNumericStrings(value); // ✅ 递归处理
+      }
+
+      newSchema[key] = value;
+    }
+    return newSchema;
+  }
+
+  return schema;
+};
+
+export const lowercaseType = (schema: Schema): JSONSchema => {
+  const newSchema: JSONSchema = { ...schema };
+
+  for (const key in newSchema) {
+    if (!newSchema.hasOwnProperty(key)) continue;
+
+    const value = newSchema[key];
+
+    if (key === 'type' && typeof value === 'string') {
+      newSchema[key] = value.toLowerCase();
+    } else if (
+      !Array.isArray(value) &&
+      typeof value === 'object' &&
+      value !== null
+    ) {
+      newSchema[key] = lowercaseType(value);
+    }
+  }
+
+  return newSchema;
+};
