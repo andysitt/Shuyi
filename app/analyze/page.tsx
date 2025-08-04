@@ -1,18 +1,17 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Button } from "@/app/components/ui/button";
-import { Progress } from "../components/ui/progress";
+import { useState, useEffect, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Button } from '@/app/components/ui/button';
+import { Progress } from '../components/ui/progress';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/app/components/ui/card";
-import { Input } from "@/app/components/ui/input";
-import { RepositoryInput } from "@/app/components/RepositoryInput";
+} from '@/app/components/ui/card';
+import { RepositoryInput } from '@/app/components/RepositoryInput';
 import {
   Play,
   Square,
@@ -21,13 +20,13 @@ import {
   Github,
   Clock,
   Activity,
-} from "lucide-react";
+} from 'lucide-react';
 
 export default function AnalysisProgressPage() {
-  const [repositoryUrl, setRepositoryUrl] = useState("");
+  const [repositoryUrl, setRepositoryUrl] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [currentStage, setCurrentStage] = useState("准备开始");
+  const [currentStage, setCurrentStage] = useState('准备开始');
   const [analysisId, setAnalysisId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -36,7 +35,7 @@ export default function AnalysisProgressPage() {
 
   // 检查是否有预填充的URL
   useEffect(() => {
-    const url = searchParams.get("url");
+    const url = searchParams.get('url');
     if (url) {
       setRepositoryUrl(decodeURIComponent(url));
     }
@@ -51,9 +50,10 @@ export default function AnalysisProgressPage() {
     };
   }, []);
 
-  const startAnalysis = async () => {
-    if (!repositoryUrl) {
-      setError("请输入GitHub仓库URL");
+  const startAnalysis = async (url?: string) => {
+    const analysisUrl = url || repositoryUrl;
+    if (!analysisUrl) {
+      setError('请输入GitHub仓库URL');
       return;
     }
 
@@ -61,21 +61,21 @@ export default function AnalysisProgressPage() {
       setIsAnalyzing(true);
       setError(null);
       setProgress(0);
-      setCurrentStage("初始化分析...");
+      setCurrentStage('初始化分析...');
 
       // 启动分析
-      const response = await fetch("/api/analyze", {
-        method: "POST",
+      const response = await fetch('/api/analyze', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ repositoryUrl }),
+        body: JSON.stringify({ repositoryUrl: analysisUrl }),
       });
 
       const data = await response.json();
 
       if (!data.success) {
-        throw new Error(data.error || "分析启动失败");
+        throw new Error(data.error || '分析启动失败');
       }
 
       // 保存分析ID用于轮询进度
@@ -84,7 +84,7 @@ export default function AnalysisProgressPage() {
       // 开始轮询进度
       startProgressPolling();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "分析启动失败");
+      setError(err instanceof Error ? err.message : '分析启动失败');
       setIsAnalyzing(false);
     }
   };
@@ -106,22 +106,22 @@ export default function AnalysisProgressPage() {
           setCurrentStage(data.progress.stage);
 
           // 检查是否完成
-          if (data.progress.status === "completed") {
+          if (data.progress.status === 'completed') {
             if (progressInterval.current) {
               clearInterval(progressInterval.current);
             }
             // 导航到结果页面
             router.push(`/analysis/${data.progress.id}`);
-          } else if (data.progress.status === "failed") {
+          } else if (data.progress.status === 'failed') {
             if (progressInterval.current) {
               clearInterval(progressInterval.current);
             }
-            setError(data.progress.details || "分析失败");
+            setError(data.progress.details || '分析失败');
             setIsAnalyzing(false);
           }
         }
       } catch (err) {
-        console.error("获取进度失败:", err);
+        console.error('获取进度失败:', err);
       }
     }, 1000); // 每秒轮询一次
   };
@@ -132,7 +132,7 @@ export default function AnalysisProgressPage() {
     try {
       // 取消分析
       await fetch(`/api/analysis/cancel/${analysisId}`, {
-        method: "POST",
+        method: 'POST',
       });
 
       // 停止轮询
@@ -143,9 +143,9 @@ export default function AnalysisProgressPage() {
 
       setIsAnalyzing(false);
       setProgress(0);
-      setCurrentStage("已取消");
+      setCurrentStage('已取消');
     } catch (err) {
-      console.error("取消分析失败:", err);
+      console.error('取消分析失败:', err);
     }
   };
 
@@ -153,7 +153,7 @@ export default function AnalysisProgressPage() {
     setRepositoryUrl(url);
     // 如果已经输入了URL，直接开始分析
     if (url) {
-      await startAnalysis();
+      await startAnalysis(url);
     }
   };
 
@@ -191,8 +191,8 @@ export default function AnalysisProgressPage() {
             </CardTitle>
             <CardDescription>
               {isAnalyzing
-                ? "正在分析仓库，请耐心等待..."
-                : "输入GitHub仓库URL开始分析"}
+                ? '正在分析仓库，请耐心等待...'
+                : '输入GitHub仓库URL开始分析'}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -201,18 +201,8 @@ export default function AnalysisProgressPage() {
                 <RepositoryInput
                   onRepositorySubmit={handleRepositorySubmit}
                   loading={false}
-                  error={error || ""}
+                  error={error || ''}
                 />
-                <div className="flex justify-center">
-                  <Button
-                    onClick={startAnalysis}
-                    className="flex items-center gap-2"
-                    size="lg"
-                  >
-                    <Play className="w-4 h-4" />
-                    开始分析
-                  </Button>
-                </div>
               </>
             ) : (
               <>

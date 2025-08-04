@@ -1,17 +1,17 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { Search, Plus, Star, Code, Calendar } from "lucide-react";
-import { Button } from "@/app/components/ui/button";
-import { Input } from "@/app/components/ui/input";
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Search, Plus, Star, Code, Calendar } from 'lucide-react';
+import { Button } from '@/app/components/ui/button';
+import { Input } from '@/app/components/ui/input';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/app/components/ui/card";
+} from '@/app/components/ui/card';
 
 interface Project {
   id: string;
@@ -26,7 +26,7 @@ interface Project {
 export default function Home() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -41,13 +41,13 @@ export default function Home() {
   const fetchProjects = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/projects");
+      const response = await fetch('/api/projects');
       const data = await response.json();
       if (data.success) {
         setProjects(data.projects);
       }
     } catch (error) {
-      console.error("获取项目列表失败:", error);
+      console.error('获取项目列表失败:', error);
     } finally {
       setLoading(false);
     }
@@ -62,13 +62,13 @@ export default function Home() {
     const filtered = projects.filter(
       (project) =>
         project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        project.description.toLowerCase().includes(searchTerm.toLowerCase())
+        project.description.toLowerCase().includes(searchTerm.toLowerCase()),
     );
     setFilteredProjects(filtered);
   };
 
   const handleNewAnalysis = () => {
-    router.push("/analyze");
+    router.push('/analyze');
   };
 
   const handleViewDetails = (id: string) => {
@@ -119,18 +119,13 @@ export default function Home() {
               <Code className="w-8 h-8 text-muted-foreground" />
             </div>
             <h3 className="text-lg font-medium text-foreground mb-2">
-              {searchTerm ? "未找到匹配的项目" : "暂无已分析的项目"}
+              {searchTerm ? '未找到匹配的项目' : '暂无已分析的项目'}
             </h3>
             <p className="text-muted-foreground">
               {searchTerm
-                ? "请尝试其他搜索关键词"
-                : "开始分析您的第一个GitHub仓库"}
+                ? '请尝试其他搜索关键词'
+                : '开始分析您的第一个GitHub仓库'}
             </p>
-            {!searchTerm && (
-              <Button onClick={handleNewAnalysis} className="mt-4">
-                开始分析
-              </Button>
-            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -166,7 +161,7 @@ function ProjectCard({
           <Star className="w-4 h-4 text-yellow-500 flex-shrink-0 ml-2" />
         </CardTitle>
         <CardDescription className="line-clamp-2">
-          {project.description || "暂无描述"}
+          {project.description || '暂无描述'}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -186,7 +181,7 @@ function ProjectCard({
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4 text-muted-foreground" />
             <span className="text-sm text-muted-foreground">
-              {new Date(project.createdAt).toLocaleDateString("zh-CN")}
+              {new Date(project.createdAt).toLocaleDateString('zh-CN')}
             </span>
           </div>
         </div>
