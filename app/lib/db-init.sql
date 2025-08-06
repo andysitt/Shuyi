@@ -29,3 +29,18 @@ CREATE INDEX IF NOT EXISTS idx_analysis_results_repository_url ON analysis_resul
 CREATE INDEX IF NOT EXISTS idx_analysis_results_created_at ON analysis_results(created_at);
 CREATE INDEX IF NOT EXISTS idx_analysis_progress_repository_url ON analysis_progress(repository_url);
 CREATE INDEX IF NOT EXISTS idx_analysis_progress_status ON analysis_progress(status);
+
+-- 创建markdown_docs表
+CREATE TABLE IF NOT EXISTS markdown_docs (
+    id SERIAL PRIMARY KEY,
+    project_path TEXT NOT NULL,
+    doc_name TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(project_path, doc_name)
+);
+
+-- 创建索引
+CREATE INDEX IF NOT EXISTS idx_markdown_docs_project_path ON markdown_docs(project_path);
+CREATE INDEX IF NOT EXISTS idx_markdown_docs_doc_name ON markdown_docs(doc_name);

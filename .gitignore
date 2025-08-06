@@ -37,3 +37,5 @@ next-env.d.ts
 
 .kiro
 .env.local
+
+/docs

@@ -35,6 +35,7 @@
     "autoprefixer": "^10.4.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.0.0",
+    "docsify": "^4.13.1",
     "eslint": "^8.0.0",
     "eslint-config-next": "^14.0.0",
     "fs-extra": "^11.1.0",

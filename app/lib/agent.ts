@@ -115,11 +115,13 @@ export class Agent {
     rolePrompt,
     history = [],
     withEnv = true,
+    jsonoutput = false,
   }: {
     actionPrompt: string;
     rolePrompt: string;
     history?: ChatMessage[];
     withEnv?: boolean;
+    jsonoutput?: boolean;
   }): Promise<AgentResult> {
     const pendingSend = new AbortController();
     const abortSignal = pendingSend.signal;
@@ -133,8 +135,10 @@ export class Agent {
         await this.geminiConfig.getToolRegistry();
 
       // Gemini CLI Core 中的 tool 到 OPENAI 的 tool 要做一些兼容转换
+      // google_web_search
       const tools: ChatCompletionTool[] = toolRegistry
         .getFunctionDeclarations()
+        .filter((item) => item.name !== 'read_many_files')
         .map((schema) => lowercaseType(schema))
         .map((item) => fixNumericStrings(item))
         .map((fn) => {
@@ -165,17 +169,20 @@ export class Agent {
       // 工具调用循环，最多执行500次
       while (it < MAX_ITERATIONS) {
         try {
-          const response = await this.openai.chat.completions.create(
-            {
-              model: this.config.model,
-              tools: tools.length > 0 ? tools : undefined,
-              messages:
-                messages as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
-            },
-            {
-              signal: abortSignal,
-            },
-          );
+          const params = {
+            model: this.config.model,
+            tools: tools.length > 0 ? tools : undefined,
+            messages:
+              messages as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
+          };
+          if (jsonoutput) {
+            (params as any).response_format = {
+              type: 'json_object',
+            };
+          }
+          const response = await this.openai.chat.completions.create(params, {
+            signal: abortSignal,
+          });
           it++;
           const choice = response.choices[0];
           if (!choice) break;
@@ -193,6 +200,10 @@ export class Agent {
 
           // 如果没有工具调用，返回结果
           if (!message.tool_calls || message.tool_calls.length === 0) {
+            if (jsonoutput) {
+              // 结构化输出时无需判断
+              break;
+            }
             const isContinued = await this.checkIsContinued(message);
             if (isContinued) {
               messages.push({
