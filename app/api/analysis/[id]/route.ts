@@ -1,9 +1,9 @@
-import { NextResponse } from "next/server";
-import { DatabaseAccess } from "@/app/lib/db-access";
+import { NextResponse } from 'next/server';
+import { DatabaseAccess } from '@/app/lib/db-access';
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: { id: string } },
 ) {
   try {
     const { id } = params;
@@ -12,8 +12,8 @@ export async function GET(
     const idNum = parseInt(id);
     if (isNaN(idNum)) {
       return NextResponse.json(
-        { success: false, error: "无效的分析ID" },
-        { status: 400 }
+        { success: false, error: '无效的分析ID' },
+        { status: 400 },
       );
     }
 
@@ -22,8 +22,8 @@ export async function GET(
 
     if (!result) {
       return NextResponse.json(
-        { success: false, error: "未找到分析结果" },
-        { status: 404 }
+        { success: false, error: '未找到分析结果' },
+        { status: 404 },
       );
     }
 
@@ -34,6 +34,7 @@ export async function GET(
       dependencies: result.dependencies,
       codeQuality: result.codeQuality,
       llmInsights: result.llmInsights,
+      repositoryUrl: result.repositoryUrl,
     };
 
     return NextResponse.json({
@@ -41,10 +42,10 @@ export async function GET(
       data: analysisData,
     });
   } catch (error) {
-    console.error("获取分析结果失败:", error);
+    console.error('获取分析结果失败:', error);
     return NextResponse.json(
-      { success: false, error: "获取分析结果失败" },
-      { status: 500 }
+      { success: false, error: '获取分析结果失败' },
+      { status: 500 },
     );
   }
 }

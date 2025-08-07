@@ -6,9 +6,11 @@ import {
   ConfigParameters,
   ToolResult,
   getFolderStructure,
+  ChatCompressionInfo,
 } from '@google/gemini-cli-core';
 import { ChatCompletionTool } from 'openai/resources/index.mjs';
-import { fixNumericStrings, lowercaseType } from './utils';
+import { fixNumericStrings, lowercaseType, tokenLimit } from './utils';
+import { PromptBuilder } from './llm-tools/prompt-builder';
 
 // LLM配置接口
 export interface LLMConfig {
@@ -81,6 +83,8 @@ export class Agent {
   private config: LLMConfig;
   private geminiConfig: Config;
   private repositoryPath: string;
+  private messages: ChatMessage[];
+  COMPRESSION_TOKEN_THRESHOLD: number;
   constructor(config: LLMConfig, repositoryPath: string) {
     this.config = config;
     const params: ConfigParameters = {
@@ -92,6 +96,8 @@ export class Agent {
     };
     this.repositoryPath = repositoryPath;
     this.geminiConfig = new Config(params);
+    this.messages = [];
+    this.COMPRESSION_TOKEN_THRESHOLD = 0.8;
 
     if (config.provider === 'openai' || config.provider === 'custom') {
       this.openai = new OpenAI({
@@ -138,7 +144,7 @@ export class Agent {
       // google_web_search
       const tools: ChatCompletionTool[] = toolRegistry
         .getFunctionDeclarations()
-        .filter((item) => item.name !== 'read_many_files')
+        .filter((item) => item.name !== 'read_many_files') // 这个工具的返回 deepseek 无法解析
         .map((schema) => lowercaseType(schema))
         .map((item) => fixNumericStrings(item))
         .map((fn) => {
@@ -159,21 +165,36 @@ export class Agent {
       ${rolePrompt}
         `;
       // 初始化消息历史
-      let messages: ChatMessage[] = [
+      this.messages = [
         { role: 'system', content: systemPropmt },
         ...history,
         { role: 'user', content: actionPrompt },
       ];
 
       let it = 0;
+      let currentTokens = 0;
       // 工具调用循环，最多执行500次
       while (it < MAX_ITERATIONS) {
         try {
+          if (
+            currentTokens >
+            this.COMPRESSION_TOKEN_THRESHOLD * tokenLimit(this.config.model)
+          ) {
+            const result = await this.tryCompressChat();
+            console.log('--------历史消息压缩----------：', result);
+            this.messages = [
+              { role: 'system', content: systemPropmt },
+              ...history,
+              { role: 'user', content: actionPrompt },
+              { role: 'assistant', content: result?.content || '' },
+              { role: 'user', content: '历史消息已压缩，请继续' },
+            ];
+          }
           const params = {
             model: this.config.model,
             tools: tools.length > 0 ? tools : undefined,
-            messages:
-              messages as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
+            messages: this
+              .messages as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
           };
           if (jsonoutput) {
             (params as any).response_format = {
@@ -185,6 +206,8 @@ export class Agent {
           });
           it++;
           const choice = response.choices[0];
+          const usage = response.usage;
+          currentTokens = usage?.total_tokens || 0;
           if (!choice) break;
 
           const message = choice.message;
@@ -192,7 +215,7 @@ export class Agent {
             '------------assistant message:',
             JSON.stringify(message),
           );
-          messages.push({
+          this.messages.push({
             role: 'assistant',
             content: message.content || '',
             tool_calls: message.tool_calls,
@@ -206,7 +229,7 @@ export class Agent {
             }
             const isContinued = await this.checkIsContinued(message);
             if (isContinued) {
-              messages.push({
+              this.messages.push({
                 role: 'user',
                 content: '请继续',
               });
@@ -237,7 +260,7 @@ export class Agent {
               }
 
               // 将工具结果添加到消息历史
-              messages.push({
+              this.messages.push({
                 role: 'tool',
                 content: toolResult,
                 tool_call_id: toolCall.id,
@@ -254,7 +277,7 @@ export class Agent {
       }
 
       // 返回最后一次的结果
-      const lastMessage = messages[messages.length - 1];
+      const lastMessage = this.messages[this.messages.length - 1];
       if (lastMessage.role === 'assistant') {
         const content = lastMessage.content;
         const lastResult = content;
@@ -262,7 +285,7 @@ export class Agent {
           content: lastResult,
           iterations: it,
           success: true,
-          history: messages,
+          history: this.messages,
         };
       }
       return {
@@ -270,7 +293,7 @@ export class Agent {
         iterations: it,
         success: false,
         error: '执行失败，详情请查看历史记录',
-        history: messages,
+        history: this.messages,
       };
     } else if (this.config.provider === 'anthropic' && this.anthropic) {
       // TODO
@@ -353,5 +376,20 @@ export class Agent {
     ${folderStructure}
             `.trim();
     return context;
+  }
+
+  async tryCompressChat(): Promise<AgentResult | null> {
+    const curatedHistory = [...this.messages];
+
+    const compressPrompt = PromptBuilder.getCompressionPrompt();
+    curatedHistory.shift();
+    const result = await this.execute({
+      actionPrompt:
+        'First, reason in your scratchpad. Then, generate the <state_snapshot>.',
+      rolePrompt: compressPrompt,
+      history: curatedHistory,
+    });
+
+    return result;
   }
 }

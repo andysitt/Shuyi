@@ -243,3 +243,16 @@ export const lowercaseType = (schema: Schema): JSONSchema => {
 
   return newSchema;
 };
+
+export const DEFAULT_TOKEN_LIMIT = 64_000;
+
+export function tokenLimit(model: string): number {
+  // Add other models as they become relevant or if specified by config
+  // Pulled from https://ai.google.dev/gemini-api/docs/models
+  switch (model) {
+    case 'deepseek-chat':
+      return 64_000;
+    default:
+      return DEFAULT_TOKEN_LIMIT;
+  }
+}

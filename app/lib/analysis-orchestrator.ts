@@ -42,14 +42,12 @@ export class AnalysisOrchestrator {
   private sessionManager: SessionManager;
   private config: AnalysisConfig;
   private basePath: string;
-  private agent: Agent;
 
   constructor(config: AnalysisConfig, repositoryPath: string) {
     this.basePath = repositoryPath;
     this.config = config;
     this.llmClient = createLLMClient(config.llmConfig, repositoryPath);
     this.sessionManager = new SessionManager(repositoryPath);
-    this.agent = new Agent(this.config.llmConfig, this.basePath);
   }
 
   // 主分析流程
@@ -78,25 +76,56 @@ export class AnalysisOrchestrator {
           .replaceAll('http://', '')
           .replaceAll('https://', '')
           .replaceAll('/', '|');
-        for (let i = 0; i < taskList.length; i++) {
-          onProgress?.({ stage: '编写分析文档', progress: 70 + i });
-          const result = await this.write(taskList[i]);
+        taskList.unshift({
+          title: '概述',
+          goal: '对当前项目进行简要介绍',
+          outline: '按当前项目内容自由发挥',
+          targetReader: '项目的目标用户',
+        });
+        // 并行执行所有文档编写任务
+        const writePromises = taskList.map(async (task, index) => {
+          try {
+            const result = await this.write(task);
+            await DocsManager.saveDoc(
+              repositoryUrlEncoded,
+              task.title.trim(),
+              result.content,
+            );
+            // 报告进度
+            onProgress?.({
+              stage: '编写分析文档',
+              progress: 70 + Math.floor(((index + 1) / taskList.length) * 30),
+            });
+            return { success: true, task };
+          } catch (error) {
+            console.error(`编写文档 "${task.title}" 失败:`, error);
+            return { success: false, task, error };
+          }
+        });
 
-          DocsManager.saveDoc(
-            repositoryUrlEncoded,
-            taskList[i].title.trim(),
-            result.content,
-          );
+        // 等待所有任务完成
+        const results = await Promise.allSettled(writePromises);
+
+        // 检查是否有任务失败
+        const failedTasks = results.filter(
+          (result): result is PromiseRejectedResult =>
+            result.status === 'rejected',
+        );
+
+        if (failedTasks.length > 0) {
+          console.warn(`有 ${failedTasks.length} 个文档编写任务失败`);
         }
+
+        // 生成侧边栏
         const outline = taskList
           .map((doc) => {
-            return `- [${doc.title.trim()}](/docs/${repositoryUrlEncoded}/${doc.title.trim()}.md)`;
+            return `- [${doc.title.trim()}](${doc.title.trim()}.md)`;
           })
           .join('\n\n');
         const sidebar = `<!-- docs/_sidebar.md -->
 ${outline}
 `;
-        DocsManager.saveDoc(repositoryUrlEncoded, '_siderbar', sidebar);
+        await DocsManager.saveDoc(repositoryUrlEncoded, '_sidebar', sidebar);
       }
 
       onProgress?.({ stage: '完成', progress: 100 });
@@ -132,7 +161,8 @@ ${outline}
     如果文档和代码有不一致的地方，请以代码为准
     最后请输出一份Markdown格式的文档编写计划
     `;
-    const result = await this.agent.execute({
+    const agent = new Agent(this.config.llmConfig, this.basePath);
+    const result = await agent.execute({
       actionPrompt,
       rolePrompt: PromptBuilder.SYSTEM_PROMPT_PLANNER,
     });
@@ -145,7 +175,8 @@ ${outline}
     ------------------------------
   ${plan}
     `;
-    const result = await this.agent.execute({
+    const agent = new Agent(this.config.llmConfig, this.basePath);
+    const result = await agent.execute({
       actionPrompt,
       rolePrompt: PromptBuilder.SYSTEM_PROMPT_SCHEDULER,
       withEnv: false,
@@ -161,7 +192,9 @@ ${outline}
     outline: string;
     targetReader: string;
   }) {
-    const actionPrompt = `请根据以下要求来生编写一篇文档
+    const actionPrompt = `结合当前仓库中的代码，根据以下要求来编写一篇文档
+    如若需要，你可以使用工具来阅读当前仓库中的任何文件
+    最终输出不要包含任何文档之外的内容，文档中也不要包含任何外部资源引用和外部链接
     ------------------------------
     ## 标题
     ${task.title}
@@ -174,7 +207,8 @@ ${outline}
     ## 目标读者
     ${task.targetReader}
     `;
-    const result = await this.agent.execute({
+    const agent = new Agent(this.config.llmConfig, this.basePath);
+    const result = await agent.execute({
       actionPrompt,
       rolePrompt: PromptBuilder.SYSTEM_PROMPT_WRITER,
       withEnv: true,

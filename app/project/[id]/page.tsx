@@ -2,7 +2,7 @@
 
 import Head from 'next/head';
 import Script from 'next/script';
-import Link from 'next/link';
+import './index.css';
 import { useEffect } from 'react';
 
 const DocsifyPage = ({ params }: { params: { id: string } }) => {
@@ -19,6 +19,7 @@ const DocsifyPage = ({ params }: { params: { id: string } }) => {
       }
 
       window.$docsify = {
+        homepage: '概述.md',
         name: '',
         repo: '',
         loadSidebar: true,

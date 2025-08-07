@@ -34,7 +34,6 @@ import {
 } from '@/app/components/ui/card';
 import { Badge } from '@/app/components/ui/badge';
 import { cn } from '@/app/lib/utils';
-import RenderMarkdown from './RenderMarkDown';
 
 interface AnalysisResultsProps {
   data: {
@@ -43,12 +42,21 @@ interface AnalysisResultsProps {
     dependencies: any[];
     codeQuality: any;
     llmInsights: any;
+    repositoryUrl: string;
   };
+  url: string;
 }
 
 export function AnalysisResults({ data }: AnalysisResultsProps) {
   const [activeTab, setActiveTab] = useState('overview');
-  const { metadata, structure, dependencies, codeQuality, llmInsights } = data;
+  const {
+    metadata,
+    structure,
+    dependencies,
+    codeQuality,
+    llmInsights,
+    repositoryUrl,
+  } = data;
 
   const StatCard = ({ icon: Icon, label, value, color = 'primary' }: any) => (
     <Card className="hover:shadow-lg transition-shadow duration-200">
@@ -130,6 +138,10 @@ export function AnalysisResults({ data }: AnalysisResultsProps) {
     );
   };
 
+  const urlEncoded = repositoryUrl
+    .replaceAll('http://', '')
+    .replaceAll('https://', '')
+    .replaceAll('/', '|');
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Repository Header */}
@@ -139,7 +151,7 @@ export function AnalysisResults({ data }: AnalysisResultsProps) {
             <div>
               <CardTitle className="text-2xl font-bold flex items-center gap-2">
                 <Github className="w-6 h-6" />
-                {metadata.name}
+                <a href={repositoryUrl}>{metadata.name}</a>
               </CardTitle>
               <CardDescription className="text-lg">
                 {metadata.description}
@@ -494,20 +506,13 @@ export function AnalysisResults({ data }: AnalysisResultsProps) {
         </TabsContent>
 
         {/* AI Insights Tab */}
-        <TabsContent value="insights" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Zap className="w-5 h-5 text-primary" />
-                AI智能分析洞察
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="prose prose-slate dark:prose-invert max-w-none">
-              {llmInsights && (
-                <div className="space-y-6">
-                  <RenderMarkdown content={llmInsights.result} />
-                </div>
-              )}
+        <TabsContent value="insights" className="space-y-6 h-[48vh]">
+          <Card className="h-[100%]">
+            <CardContent className="prose prose-slate dark:prose-invert max-w-none h-[100%]">
+              <iframe
+                src={`/project/${urlEncoded}`}
+                style={{ width: '100%', height: '100%' }}
+              ></iframe>
             </CardContent>
           </Card>
         </TabsContent>
