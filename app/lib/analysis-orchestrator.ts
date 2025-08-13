@@ -13,6 +13,7 @@ import {
 import { Agent, AgentResult } from './agent';
 import { PromptBuilder } from './llm-tools/prompt-builder';
 import { DocsManager } from './docs-manager';
+import { analyzeStructure, analyzeDependencies, analyzeCodeQuality } from './analysis-tools';
 
 // 分析配置
 export interface AnalysisConfig {
@@ -38,7 +39,6 @@ export interface AnalysisProgress {
 
 // 分析协调器
 export class AnalysisOrchestrator {
-  private llmClient: LLMClient;
   private sessionManager: SessionManager;
   private config: AnalysisConfig;
   private basePath: string;
@@ -46,8 +46,22 @@ export class AnalysisOrchestrator {
   constructor(config: AnalysisConfig, repositoryPath: string) {
     this.basePath = repositoryPath;
     this.config = config;
-    this.llmClient = createLLMClient(config.llmConfig, repositoryPath);
     this.sessionManager = new SessionManager(repositoryPath);
+  }
+
+  // 结构分析方法
+  private async analyzeStructure(repositoryPath: string): Promise<RepositoryStructure> {
+    return await analyzeStructure(repositoryPath);
+  }
+
+  // 依赖分析方法
+  private async analyzeDependencies(repositoryPath: string): Promise<DependencyInfo[]> {
+    return await analyzeDependencies(repositoryPath);
+  }
+
+  // 代码质量分析方法
+  private async analyzeCodeQuality(repositoryPath: string): Promise<CodeQualityMetrics> {
+    return await analyzeCodeQuality(repositoryPath);
   }
 
   // 主分析流程
@@ -63,10 +77,34 @@ export class AnalysisOrchestrator {
     );
 
     try {
-      onProgress?.({ stage: '制定分析计划', progress: 30 });
+      onProgress?.({ stage: '分析结构信息', progress: 20 });
+      // 进行结构分析
+      const structure = await this.analyzeStructure(repositoryPath);
+      onProgress?.({ stage: '分析依赖信息', progress: 30 });
+      // 进行依赖分析
+      const dependencies = await this.analyzeDependencies(repositoryPath);
+      onProgress?.({ stage: '分析代码质量', progress: 40 });
+      // 进行代码质量分析
+      const codeQuality = await this.analyzeCodeQuality(repositoryPath);
+      onProgress?.({ stage: '开始 AI 智能分析', progress: 45 });
+      this.performLLMAnalysis(repositoryUrl, onProgress);
+      const result = this.buildFinalResult(repositoryMetadata, structure, dependencies, codeQuality, '');
+      return result;
+    } finally {
+      this.sessionManager.endSession(session.sessionId);
+    }
+  }
+
+  // 执行LLM智能分析
+  private async performLLMAnalysis(
+    repositoryUrl: string,
+    onProgress?: (progress: AnalysisProgress) => void,
+  ): Promise<boolean> {
+    try {
+      onProgress?.({ stage: 'AI智能分析-制定分析计划', progress: 60 });
       const plan = await this.plan();
 
-      onProgress?.({ stage: '分解分析任务', progress: 50 });
+      onProgress?.({ stage: 'AI智能分析-分解分析任务', progress: 70 });
       const tasks = await this.buildTasks(plan.content);
       const res = JSON.parse(tasks.content);
       const taskList = res.document_tasks;
@@ -93,12 +131,12 @@ export class AnalysisOrchestrator {
             );
             // 报告进度
             onProgress?.({
-              stage: '编写分析文档',
-              progress: 70 + Math.floor(((index + 1) / taskList.length) * 30),
+              stage: 'AI智能分析-编写分析文档',
+              progress: 80 + Math.floor(((index + 1) / taskList.length) * 30),
             });
             return { success: true, task };
           } catch (error) {
-            console.error(`编写文档 "${task.title}" 失败:`, error);
+            console.error(`AI智能分析-编写文档 "${task.title}" 失败:`, error);
             return { success: false, task, error };
           }
         });
@@ -127,30 +165,11 @@ ${outline}
 `;
         await DocsManager.saveDoc(repositoryUrlEncoded, '_sidebar', sidebar);
       }
-
-      onProgress?.({ stage: '完成', progress: 100 });
-      const result = this.buildFinalResult(repositoryMetadata, '');
-      return result;
-    } finally {
-      this.sessionManager.endSession(session.sessionId);
+      return true;
+    } catch (e) {
+      console.error(e);
+      return false;
     }
-  }
-
-  // 执行LLM智能分析
-  private async performLLMAnalysis(
-    repositoryPath: string,
-    repositoryUrl: string,
-  ): Promise<string> {
-    const cacheKey = `ai_analysis_${repositoryUrl}`;
-    let llmInsights = await cacheManager.get(cacheKey);
-
-    if (!llmInsights) {
-      llmInsights = await this.llmClient.analyzeProject(); // 传递工具管理器以支持工具调用
-
-      await cacheManager.set(cacheKey, llmInsights, 7200); // 2小时缓存
-    }
-
-    return llmInsights;
   }
 
   // 制定文档编写计划
@@ -215,45 +234,14 @@ ${outline}
     });
     return result;
   }
-
-  // 创建 docsify 目录
-  private async buildSideBar() {}
   // 构建最终结果
   private async buildFinalResult(
     metadata: RepositoryMetadata,
+    structure: RepositoryStructure,
+    dependencies: DependencyInfo[],
+    codeQuality: CodeQualityMetrics,
     llmInsights: string,
   ): Promise<AnalysisResult> {
-    // 创建默认的结构信息
-    const structure: RepositoryStructure = {
-      root: {
-        name: metadata.name,
-        type: 'directory',
-        path: '.',
-        size: metadata.size,
-      },
-      totalFiles: 0,
-      totalDirectories: 0,
-      languages: { [metadata.language]: metadata.size },
-      keyFiles: [],
-    };
-
-    // 创建默认的依赖信息
-    const dependencies: DependencyInfo[] = Object.entries(
-      metadata.topics || {},
-    ).map(([name, version]) => ({
-      name,
-      version: version as string,
-      type: 'production',
-    }));
-
-    // 创建默认的代码质量指标
-    const codeQuality: CodeQualityMetrics = {
-      complexity: { average: 0, max: 0, files: [] },
-      duplication: 0,
-      maintainability: 0,
-      securityIssues: [],
-    };
-
     return {
       metadata,
       structure,
