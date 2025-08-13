@@ -1,29 +1,29 @@
-import { NextRequest, NextResponse } from "next/server";
-import { GitHubClient } from "@/app/lib/github-client";
-import { AnalysisOrchestrator } from "@/app/lib/analysis-orchestrator";
-import { cacheManager, tempManager } from "@/app/lib/cache-manager";
-import { DatabaseAccess } from "@/app/lib/db-access";
-import { AnalysisRequest, AnalysisResult } from "@/app/types";
+import { NextRequest, NextResponse } from 'next/server';
+import { GitHubClient } from '@/app/lib/github-client';
+import { AnalysisOrchestrator } from '@/app/lib/analysis-orchestrator';
+import { cacheManager, tempManager } from '@/app/lib/cache-manager';
+import { DatabaseAccess } from '@/app/lib/db-access';
+import { AnalysisRequest, AnalysisResult } from '@/app/types';
 
 export async function POST(request: NextRequest) {
   try {
     const body: AnalysisRequest = await request.json();
-    const { repositoryUrl, analysisType = "full" } = body;
+    const { repositoryUrl, analysisType = 'full' } = body;
 
     if (!repositoryUrl) {
       return NextResponse.json(
-        { success: false, error: "仓库URL是必需的" },
-        { status: 400 }
+        { success: false, error: '仓库URL是必需的' },
+        { status: 400 },
       );
     }
 
     // 创建分析进度记录
     const progressRecord = await DatabaseAccess.createAnalysisProgress({
       repositoryUrl,
-      status: "pending",
+      status: 'pending',
       progress: 0,
-      stage: "初始化",
-      details: "正在初始化分析...",
+      stage: '初始化',
+      details: '正在初始化分析...',
     });
 
     const progressId = progressRecord.id.toString();
@@ -32,13 +32,13 @@ export async function POST(request: NextRequest) {
     const updateProgress = async (
       progress: number,
       stage: string,
-      details?: string
+      details?: string,
     ) => {
       await DatabaseAccess.updateAnalysisProgress(parseInt(progressId), {
         progress,
         stage,
         details,
-        status: "analyzing",
+        status: 'analyzing',
       });
     };
 
@@ -46,18 +46,18 @@ export async function POST(request: NextRequest) {
     // 使用setTimeout异步执行分析过程
     setTimeout(async () => {
       try {
-        await updateProgress(5, "验证仓库", "正在验证仓库有效性...");
+        await updateProgress(5, '验证仓库', '正在验证仓库有效性...');
 
         // 检查缓存
         const cacheKey = `analysis:${repositoryUrl}:${analysisType}`;
         const cached = await cacheManager.get(cacheKey);
         if (cached) {
-          await updateProgress(100, "完成", "分析完成");
+          await updateProgress(100, '完成', '分析完成');
           await DatabaseAccess.updateAnalysisProgress(parseInt(progressId), {
-            status: "completed",
+            status: 'completed',
             progress: 100,
-            stage: "完成",
-            details: "分析完成",
+            stage: '完成',
+            details: '分析完成',
           });
 
           // 保存到数据库
@@ -70,8 +70,8 @@ export async function POST(request: NextRequest) {
             structure: cached.structure || {
               root: {
                 name: metadata.name,
-                type: "directory" as const,
-                path: ".",
+                type: 'directory' as const,
+                path: '.',
                 size: metadata.size,
               },
               totalFiles: 0,
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
               Object.entries(metadata.topics || {}).map(([name, version]) => ({
                 name,
                 version: version as string,
-                type: "production" as const,
+                type: 'production' as const,
               })),
             codeQuality: cached.codeQuality || {
               complexity: { average: 0, max: 0, files: [] },
@@ -93,14 +93,14 @@ export async function POST(request: NextRequest) {
               securityIssues: [],
             },
             llmInsights: cached.llmInsights || {},
-            status: "completed" as const,
+            status: 'completed' as const,
           };
           await DatabaseAccess.saveAnalysisResult(dbResult);
 
           return;
         }
 
-        await updateProgress(10, "验证仓库", "正在验证仓库有效性...");
+        await updateProgress(10, '验证仓库', '正在验证仓库有效性...');
 
         // 验证仓库
         const githubClient = new GitHubClient();
@@ -108,21 +108,21 @@ export async function POST(request: NextRequest) {
 
         if (!validation.isValid) {
           await DatabaseAccess.updateAnalysisProgress(parseInt(progressId), {
-            status: "failed",
+            status: 'failed',
             details: validation.error,
           });
           return;
         }
 
         const { owner, repo } = validation;
-        await updateProgress(15, "获取元数据", "正在获取仓库元数据...");
+        await updateProgress(15, '获取元数据', '正在获取仓库元数据...');
 
         // 获取仓库元数据
         const metadata = await githubClient.getRepositoryMetadata(
           owner!,
-          repo!
+          repo!,
         );
-        await updateProgress(20, "克隆仓库", "正在克隆仓库...");
+        await updateProgress(20, '克隆仓库', '正在克隆仓库...');
 
         // 创建临时目录
         const tempDir = tempManager.createTempDirectory();
@@ -130,24 +130,24 @@ export async function POST(request: NextRequest) {
         try {
           // 克隆仓库
           await githubClient.cloneRepository(repositoryUrl, tempDir);
-          await updateProgress(30, "配置分析", "正在配置AI分析...");
+          await updateProgress(30, '配置分析', '正在配置AI分析...');
 
           // 配置LLM分析
           if (!process.env.LLM_API_KEY) {
             await DatabaseAccess.updateAnalysisProgress(parseInt(progressId), {
-              status: "failed",
-              details: "LLM API密钥未配置，请设置 LLM_API_KEY",
+              status: 'failed',
+              details: 'LLM API密钥未配置，请设置 LLM_API_KEY',
             });
             return;
           }
 
           const llmConfig = {
-            provider: (process.env.LLM_PROVIDER || "openai") as
-              | "openai"
-              | "anthropic"
-              | "custom",
+            provider: (process.env.LLM_PROVIDER || 'openai') as
+              | 'openai'
+              | 'anthropic'
+              | 'custom',
             apiKey: process.env.LLM_API_KEY,
-            model: process.env.LLM_MODEL || "gpt-4",
+            model: process.env.LLM_MODEL || 'gpt-4',
             baseURL: process.env.LLM_BASE_URL || undefined,
           };
 
@@ -156,16 +156,16 @@ export async function POST(request: NextRequest) {
               llmConfig,
               analysisType: analysisType as any,
               maxFilesToAnalyze: 15,
-              includePatterns: ["**/*.{js,ts,py,java,go,rs,php,rb}"],
+              includePatterns: ['**/*.{js,ts,py,java,go,rs,php,rb}'],
               excludePatterns: [
-                "node_modules/**",
-                ".git/**",
-                "dist/**",
-                "build/**",
-                "*.min.*",
+                'node_modules/**',
+                '.git/**',
+                'dist/**',
+                'build/**',
+                '*.min.*',
               ],
             },
-            tempDir
+            tempDir,
           );
 
           // 执行深度分析
@@ -174,16 +174,20 @@ export async function POST(request: NextRequest) {
             tempDir,
             metadata,
             async (progress) => {
-              // 更新进度
-              await updateProgress(
-                30 + Math.round(progress.progress * 0.6),
-                progress.stage,
-                progress.details
-              );
-            }
+              try {
+                // 更新进度
+                await updateProgress(
+                  30 + Math.round(progress.progress * 0.7), // 调整进度计算，确保最终能到100%
+                  progress.stage,
+                  progress.details,
+                );
+              } catch (error) {
+                console.error('更新进度失败:', error);
+              }
+            },
           );
 
-          await updateProgress(95, "保存结果", "正在保存分析结果...");
+          await updateProgress(95, '保存结果', '正在保存分析结果...');
 
           // 缓存结果
           await cacheManager.set(cacheKey, result, 3600); // 1小时缓存
@@ -198,22 +202,22 @@ export async function POST(request: NextRequest) {
             dependencies: result.dependencies,
             codeQuality: result.codeQuality,
             llmInsights: result.llmInsights,
-            status: "completed" as const,
+            status: 'completed' as const,
           };
           await DatabaseAccess.saveAnalysisResult(dbResult);
 
-          await updateProgress(100, "完成", "分析完成");
+          await updateProgress(100, '完成', '分析完成');
           await DatabaseAccess.updateAnalysisProgress(parseInt(progressId), {
-            status: "completed",
+            status: 'completed',
             progress: 100,
-            stage: "完成",
-            details: "分析完成",
+            stage: '完成',
+            details: '分析完成',
           });
         } catch (error) {
-          console.error("LLM分析错误:", error);
+          console.error('LLM分析错误:', error);
           await DatabaseAccess.updateAnalysisProgress(parseInt(progressId), {
-            status: "failed",
-            details: error instanceof Error ? error.message : "分析失败",
+            status: 'failed',
+            details: error instanceof Error ? error.message : '分析失败',
           });
 
           // 如果LLM失败，返回基础分析
@@ -222,8 +226,8 @@ export async function POST(request: NextRequest) {
             structure: {
               root: {
                 name: repo || metadata.name,
-                type: "directory",
-                path: ".",
+                type: 'directory',
+                path: '.',
                 size: metadata.size,
               },
               totalFiles: 0,
@@ -235,8 +239,8 @@ export async function POST(request: NextRequest) {
               ([name, version]) => ({
                 name,
                 version: version as string,
-                type: "production",
-              })
+                type: 'production',
+              }),
             ),
             codeQuality: {
               complexity: { average: 0, max: 0, files: [] },
@@ -244,7 +248,7 @@ export async function POST(request: NextRequest) {
               maintainability: 0,
               securityIssues: [],
             },
-            llmInsights: "LLM分析暂时不可用",
+            llmInsights: 'LLM分析暂时不可用',
           };
 
           await cacheManager.set(cacheKey, basicResult, 1800); // 30分钟缓存
@@ -259,7 +263,7 @@ export async function POST(request: NextRequest) {
             dependencies: basicResult.dependencies,
             codeQuality: basicResult.codeQuality,
             llmInsights: basicResult.llmInsights,
-            status: "completed" as const,
+            status: 'completed' as const,
           };
           await DatabaseAccess.saveAnalysisResult(dbResult);
         } finally {
@@ -267,10 +271,10 @@ export async function POST(request: NextRequest) {
           await tempManager.cleanupTempDirectory(tempDir);
         }
       } catch (error) {
-        console.error("分析错误:", error);
+        console.error('分析错误:', error);
         await DatabaseAccess.updateAnalysisProgress(parseInt(progressId), {
-          status: "failed",
-          details: error instanceof Error ? error.message : "分析失败",
+          status: 'failed',
+          details: error instanceof Error ? error.message : '分析失败',
         });
       }
     }, 0);
@@ -279,16 +283,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       analysisId: progressId,
-      message: "分析已启动",
+      message: '分析已启动',
     });
   } catch (error) {
-    console.error("分析错误:", error);
+    console.error('分析错误:', error);
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "分析失败",
+        error: error instanceof Error ? error.message : '分析失败',
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -296,13 +300,13 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   return NextResponse.json({
     success: true,
-    message: "GitHub仓库分析API已就绪",
+    message: 'GitHub仓库分析API已就绪',
     endpoints: {
-      POST: "/api/analyze",
+      POST: '/api/analyze',
     },
     example: {
-      repositoryUrl: "https://github.com/owner/repository",
-      analysisType: "full",
+      repositoryUrl: 'https://github.com/owner/repository',
+      analysisType: 'full',
     },
   });
 }

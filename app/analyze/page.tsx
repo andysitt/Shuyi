@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/app/components/ui/button';
 import { Progress } from '../components/ui/progress';
@@ -22,6 +22,79 @@ import {
   Activity,
 } from 'lucide-react';
 
+// 优化状态指示器组件
+const StatusIndicator = memo(
+  ({
+    icon: Icon,
+    label,
+    color,
+  }: {
+    icon: any;
+    label: string;
+    color: string;
+  }) => (
+    <div className="text-center">
+      <div
+        className={`inline-flex items-center justify-center w-10 h-10 rounded-full mb-2 ${
+          color === 'blue'
+            ? 'bg-blue-100 dark:bg-blue-900'
+            : color === 'yellow'
+            ? 'bg-yellow-100 dark:bg-yellow-900'
+            : 'bg-green-100 dark:bg-green-900'
+        }`}
+      >
+        <Icon
+          className={`w-5 h-5 ${
+            color === 'blue'
+              ? 'text-blue-500'
+              : color === 'yellow'
+              ? 'text-yellow-500'
+              : 'text-green-500'
+          }`}
+        />
+      </div>
+      <p className="text-xs text-muted-foreground">{label}</p>
+    </div>
+  ),
+);
+StatusIndicator.displayName = 'StatusIndicator';
+
+// 优化进度显示组件
+const ProgressDisplay = memo(
+  ({ currentStage, progress }: { currentStage: string; progress: number }) => (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <span className="text-sm font-medium text-muted-foreground">
+          {currentStage}
+        </span>
+        <span className="text-sm font-medium">{Math.round(progress)}%</span>
+      </div>
+      <Progress value={progress} className="h-3" />
+    </div>
+  ),
+);
+ProgressDisplay.displayName = 'ProgressDisplay';
+
+// 优化仓库信息显示组件
+const RepositoryInfo = memo(({ repositoryUrl }: { repositoryUrl: string }) => (
+  <div className="bg-muted/50 rounded-lg p-4">
+    <div className="flex items-center gap-2 text-sm">
+      <Github className="w-4 h-4" />
+      <span className="font-mono truncate">{repositoryUrl}</span>
+    </div>
+  </div>
+));
+RepositoryInfo.displayName = 'RepositoryInfo';
+
+// 优化错误显示组件
+const ErrorDisplay = memo(({ error }: { error: string }) => (
+  <div className="flex items-center gap-2 p-3 bg-red-100 dark:bg-red-900/30 rounded-lg">
+    <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+    <span className="text-sm text-red-500">{error}</span>
+  </div>
+));
+ErrorDisplay.displayName = 'ErrorDisplay';
+
 export default function AnalysisProgressPage() {
   const [repositoryUrl, setRepositoryUrl] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -33,13 +106,22 @@ export default function AnalysisProgressPage() {
   const searchParams = useSearchParams();
   const progressInterval = useRef<NodeJS.Timeout | null>(null);
 
+  // 使用 useMemo 优化计算值
+  const isCompleted = useMemo(() => progress === 100, [progress]);
+  const progressPercentage = useMemo(() => Math.round(progress), [progress]);
+
+  // 使用 useCallback 优化回调函数
+  const updateUrl = useCallback((url: string) => {
+    setRepositoryUrl(decodeURIComponent(url));
+  }, []);
+
   // 检查是否有预填充的URL
   useEffect(() => {
     const url = searchParams.get('url');
     if (url) {
-      setRepositoryUrl(decodeURIComponent(url));
+      updateUrl(url);
     }
-  }, [searchParams]);
+  }, [searchParams, updateUrl]);
 
   // 清理定时器
   useEffect(() => {
@@ -50,83 +132,89 @@ export default function AnalysisProgressPage() {
     };
   }, []);
 
-  const startAnalysis = async (url?: string) => {
-    const analysisUrl = url || repositoryUrl;
-    if (!analysisUrl) {
-      setError('请输入GitHub仓库URL');
-      return;
-    }
-
-    try {
-      setIsAnalyzing(true);
-      setError(null);
-      setProgress(0);
-      setCurrentStage('初始化分析...');
-
-      // 启动分析
-      const response = await fetch('/api/analyze', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ repositoryUrl: analysisUrl }),
-      });
-
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || '分析启动失败');
+  const startAnalysis = useCallback(
+    async (url?: string) => {
+      const analysisUrl = url || repositoryUrl;
+      if (!analysisUrl) {
+        setError('请输入GitHub仓库URL');
+        return;
       }
-
-      // 保存分析ID用于轮询进度
-      setAnalysisId(data.analysisId);
-
-      // 开始轮询进度
-      startProgressPolling();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '分析启动失败');
-      setIsAnalyzing(false);
-    }
-  };
-
-  const startProgressPolling = () => {
-    if (progressInterval.current) {
-      clearInterval(progressInterval.current);
-    }
-
-    progressInterval.current = setInterval(async () => {
-      if (!analysisId) return;
 
       try {
-        const response = await fetch(`/api/analysis/progress/${analysisId}`);
+        setIsAnalyzing(true);
+        setError(null);
+        setProgress(0);
+        setCurrentStage('初始化分析...');
+
+        // 启动分析
+        const response = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ repositoryUrl: analysisUrl }),
+        });
+
         const data = await response.json();
 
-        if (data.success) {
-          setProgress(data.progress.progress);
-          setCurrentStage(data.progress.stage);
-
-          // 检查是否完成
-          if (data.progress.status === 'completed') {
-            if (progressInterval.current) {
-              clearInterval(progressInterval.current);
-            }
-            // 导航到结果页面
-            router.push(`/analysis/${data.progress.id}`);
-          } else if (data.progress.status === 'failed') {
-            if (progressInterval.current) {
-              clearInterval(progressInterval.current);
-            }
-            setError(data.progress.details || '分析失败');
-            setIsAnalyzing(false);
-          }
+        if (!data.success) {
+          throw new Error(data.error || '分析启动失败');
         }
-      } catch (err) {
-        console.error('获取进度失败:', err);
-      }
-    }, 1000); // 每秒轮询一次
-  };
 
-  const cancelAnalysis = async () => {
+        // 保存分析ID用于轮询进度
+        setAnalysisId(data.analysisId);
+
+        // 开始轮询进度
+        startProgressPolling(data.analysisId);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '分析启动失败');
+        setIsAnalyzing(false);
+      }
+    },
+    [repositoryUrl],
+  );
+
+  const startProgressPolling = useCallback(
+    (id: string) => {
+      if (progressInterval.current) {
+        clearInterval(progressInterval.current);
+      }
+
+      progressInterval.current = setInterval(async () => {
+        if (!id) return;
+
+        try {
+          const response = await fetch(`/api/analysis/progress/${id}`);
+          const data = await response.json();
+
+          if (data.success) {
+            setProgress(data.progress.progress);
+            setCurrentStage(data.progress.stage);
+
+            // 检查是否完成
+            if (data.progress.status === 'completed') {
+              if (progressInterval.current) {
+                clearInterval(progressInterval.current);
+              }
+              // 导航到结果页面
+              router.push(`/analysis/${data.progress.id}`);
+            } else if (data.progress.status === 'failed') {
+              if (progressInterval.current) {
+                clearInterval(progressInterval.current);
+              }
+              setError(data.progress.details || '分析失败');
+              setIsAnalyzing(false);
+            }
+          }
+        } catch (err) {
+          console.error('获取进度失败:', err);
+        }
+      }, 1000); // 每秒轮询一次
+    },
+    [router],
+  );
+
+  const cancelAnalysis = useCallback(async () => {
     if (!analysisId) return;
 
     try {
@@ -147,15 +235,50 @@ export default function AnalysisProgressPage() {
     } catch (err) {
       console.error('取消分析失败:', err);
     }
-  };
+  }, [analysisId]);
 
-  const handleRepositorySubmit = async (url: string) => {
-    setRepositoryUrl(url);
-    // 如果已经输入了URL，直接开始分析
-    if (url) {
-      await startAnalysis(url);
-    }
-  };
+  const handleRepositorySubmit = useCallback(
+    async (url: string) => {
+      setRepositoryUrl(url);
+      // 如果已经输入了URL，直接开始分析
+      if (url) {
+        await startAnalysis(url);
+      }
+    },
+    [startAnalysis],
+  );
+
+  // 使用 useMemo 优化条件渲染的值
+  const cardTitleContent = useMemo(
+    () =>
+      isAnalyzing ? (
+        <>
+          <Activity className="w-5 h-5 text-primary animate-pulse" />
+          分析进行中
+        </>
+      ) : (
+        <>
+          <Play className="w-5 h-5 text-primary" />
+          开始新分析
+        </>
+      ),
+    [isAnalyzing],
+  );
+
+  const cardDescriptionContent = useMemo(
+    () =>
+      isAnalyzing ? '正在分析仓库，请耐心等待...' : '输入GitHub仓库URL开始分析',
+    [isAnalyzing],
+  );
+
+  const RInput = memo(({ url }: { url: string }) => (
+    <RepositoryInput
+      onRepositorySubmit={handleRepositorySubmit}
+      loading={false}
+      error={error || ''}
+      defaultUrl={url || ''}
+    />
+  ));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
@@ -177,55 +300,23 @@ export default function AnalysisProgressPage() {
         <Card className="max-w-2xl mx-auto">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              {isAnalyzing ? (
-                <>
-                  <Activity className="w-5 h-5 text-primary animate-pulse" />
-                  分析进行中
-                </>
-              ) : (
-                <>
-                  <Play className="w-5 h-5 text-primary" />
-                  开始新分析
-                </>
-              )}
+              {cardTitleContent}
             </CardTitle>
-            <CardDescription>
-              {isAnalyzing
-                ? '正在分析仓库，请耐心等待...'
-                : '输入GitHub仓库URL开始分析'}
-            </CardDescription>
+            <CardDescription>{cardDescriptionContent}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {!isAnalyzing ? (
-              <>
-                <RepositoryInput
-                  onRepositorySubmit={handleRepositorySubmit}
-                  loading={false}
-                  error={error || ''}
-                />
-              </>
+              <RInput url={repositoryUrl} />
             ) : (
               <>
                 {/* Progress Display */}
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium text-muted-foreground">
-                      {currentStage}
-                    </span>
-                    <span className="text-sm font-medium">
-                      {Math.round(progress)}%
-                    </span>
-                  </div>
-                  <Progress value={progress} className="h-3" />
-                </div>
+                <ProgressDisplay
+                  currentStage={currentStage}
+                  progress={progressPercentage}
+                />
 
                 {/* Repository Info */}
-                <div className="bg-muted/50 rounded-lg p-4">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Github className="w-4 h-4" />
-                    <span className="font-mono truncate">{repositoryUrl}</span>
-                  </div>
-                </div>
+                <RepositoryInfo repositoryUrl={repositoryUrl} />
 
                 {/* Cancel Button */}
                 <div className="flex justify-center">
@@ -244,33 +335,21 @@ export default function AnalysisProgressPage() {
             {/* Status Indicators */}
             {isAnalyzing && (
               <div className="grid grid-cols-3 gap-4 pt-4">
-                <div className="text-center">
-                  <div className="inline-flex items-center justify-center w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-full mb-2">
-                    <Clock className="w-5 h-5 text-blue-500" />
-                  </div>
-                  <p className="text-xs text-muted-foreground">准备阶段</p>
-                </div>
-                <div className="text-center">
-                  <div className="inline-flex items-center justify-center w-10 h-10 bg-yellow-100 dark:bg-yellow-900 rounded-full mb-2">
-                    <Activity className="w-5 h-5 text-yellow-500" />
-                  </div>
-                  <p className="text-xs text-muted-foreground">分析中</p>
-                </div>
-                <div className="text-center">
-                  <div className="inline-flex items-center justify-center w-10 h-10 bg-green-100 dark:bg-green-900 rounded-full mb-2">
-                    <CheckCircle className="w-5 h-5 text-green-500" />
-                  </div>
-                  <p className="text-xs text-muted-foreground">完成</p>
-                </div>
+                <StatusIndicator icon={Clock} label="准备阶段" color="blue" />
+                <StatusIndicator
+                  icon={Activity}
+                  label="分析中"
+                  color="yellow"
+                />
+                <StatusIndicator
+                  icon={CheckCircle}
+                  label="完成"
+                  color="green"
+                />
               </div>
             )}
 
-            {error && (
-              <div className="flex items-center gap-2 p-3 bg-red-100 dark:bg-red-900/30 rounded-lg">
-                <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
-                <span className="text-sm text-red-500">{error}</span>
-              </div>
-            )}
+            {error && <ErrorDisplay error={error} />}
           </CardContent>
         </Card>
       </div>

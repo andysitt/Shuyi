@@ -1,41 +1,47 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import { Loader2, Github, Search, AlertCircle } from 'lucide-react'
-import { isValidGitHubUrl } from '@/app/lib/utils'
-import { Button } from '@/app/components/ui/button'
-import { Input } from '@/app/components/ui/input'
-import { Label } from '@/app/components/ui/label'
-import { Alert, AlertDescription } from '@/app/components/ui/alert'
-import { Card, CardContent } from '@/app/components/ui/card'
-import { Badge } from '@/app/components/ui/badge'
+import { useState } from 'react';
+import { Loader2, Github, Search, AlertCircle } from 'lucide-react';
+import { isValidGitHubUrl } from '@/app/lib/utils';
+import { Button } from '@/app/components/ui/button';
+import { Input } from '@/app/components/ui/input';
+import { Label } from '@/app/components/ui/label';
+import { Alert, AlertDescription } from '@/app/components/ui/alert';
+import { Card, CardContent } from '@/app/components/ui/card';
+import { Badge } from '@/app/components/ui/badge';
 
 interface RepositoryInputProps {
-  onRepositorySubmit: (url: string) => Promise<void>
-  loading: boolean
-  error?: string
+  onRepositorySubmit: (url: string) => Promise<void>;
+  loading: boolean;
+  error?: string;
+  defaultUrl?: string;
 }
 
-export function RepositoryInput({ onRepositorySubmit, loading, error }: RepositoryInputProps) {
-  const [url, setUrl] = useState('')
-  const [validationError, setValidationError] = useState('')
+export function RepositoryInput({
+  onRepositorySubmit,
+  loading,
+  error,
+  defaultUrl,
+}: RepositoryInputProps) {
+  const [url, setUrl] = useState(defaultUrl);
+  const [validationError, setValidationError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setValidationError('')
+    e.preventDefault();
+    setValidationError('');
 
-    if (!url.trim()) {
-      setValidationError('请输入GitHub仓库URL')
-      return
+    if (!(url || '').trim()) {
+      setValidationError('请输入GitHub仓库URL');
+      return;
     }
 
-    if (!isValidGitHubUrl(url)) {
-      setValidationError('请输入有效的GitHub仓库URL')
-      return
+    if (!isValidGitHubUrl(url || '')) {
+      setValidationError('请输入有效的GitHub仓库URL');
+      return;
     }
 
-    await onRepositorySubmit(url)
-  }
+    await onRepositorySubmit(url || '');
+  };
 
   return (
     <Card className="max-w-2xl mx-auto shadow-lg">
@@ -73,7 +79,7 @@ export function RepositoryInput({ onRepositorySubmit, loading, error }: Reposito
 
           <Button
             type="submit"
-            disabled={loading || !url.trim()}
+            disabled={loading || !(url || '').trim()}
             className="w-full"
             size="lg"
           >
@@ -109,5 +115,5 @@ export function RepositoryInput({ onRepositorySubmit, loading, error }: Reposito
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }

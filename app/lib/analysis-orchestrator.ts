@@ -13,7 +13,11 @@ import {
 import { Agent, AgentResult } from './agent';
 import { PromptBuilder } from './llm-tools/prompt-builder';
 import { DocsManager } from './docs-manager';
-import { analyzeStructure, analyzeDependencies, analyzeCodeQuality } from './analysis-tools';
+import {
+  analyzeStructure,
+  analyzeDependencies,
+  analyzeCodeQuality,
+} from './analysis-tools';
 
 // 分析配置
 export interface AnalysisConfig {
@@ -50,17 +54,23 @@ export class AnalysisOrchestrator {
   }
 
   // 结构分析方法
-  private async analyzeStructure(repositoryPath: string): Promise<RepositoryStructure> {
+  private async analyzeStructure(
+    repositoryPath: string,
+  ): Promise<RepositoryStructure> {
     return await analyzeStructure(repositoryPath);
   }
 
   // 依赖分析方法
-  private async analyzeDependencies(repositoryPath: string): Promise<DependencyInfo[]> {
+  private async analyzeDependencies(
+    repositoryPath: string,
+  ): Promise<DependencyInfo[]> {
     return await analyzeDependencies(repositoryPath);
   }
 
   // 代码质量分析方法
-  private async analyzeCodeQuality(repositoryPath: string): Promise<CodeQualityMetrics> {
+  private async analyzeCodeQuality(
+    repositoryPath: string,
+  ): Promise<CodeQualityMetrics> {
     return await analyzeCodeQuality(repositoryPath);
   }
 
@@ -87,8 +97,14 @@ export class AnalysisOrchestrator {
       // 进行代码质量分析
       const codeQuality = await this.analyzeCodeQuality(repositoryPath);
       onProgress?.({ stage: '开始 AI 智能分析', progress: 45 });
-      this.performLLMAnalysis(repositoryUrl, onProgress);
-      const result = this.buildFinalResult(repositoryMetadata, structure, dependencies, codeQuality, '');
+      await this.performLLMAnalysis(repositoryUrl, onProgress);
+      const result = this.buildFinalResult(
+        repositoryMetadata,
+        structure,
+        dependencies,
+        codeQuality,
+        '',
+      );
       return result;
     } finally {
       this.sessionManager.endSession(session.sessionId);
@@ -126,13 +142,13 @@ export class AnalysisOrchestrator {
             const result = await this.write(task);
             await DocsManager.saveDoc(
               repositoryUrlEncoded,
-              task.title.trim(),
+              task.title.replaceAll(' ', ''),
               result.content,
             );
             // 报告进度
             onProgress?.({
               stage: 'AI智能分析-编写分析文档',
-              progress: 80 + Math.floor(((index + 1) / taskList.length) * 30),
+              progress: 80 + Math.floor(((index + 1) / taskList.length) * 20),
             });
             return { success: true, task };
           } catch (error) {
@@ -157,17 +173,29 @@ export class AnalysisOrchestrator {
         // 生成侧边栏
         const outline = taskList
           .map((doc) => {
-            return `- [${doc.title.trim()}](${doc.title.trim()}.md)`;
+            return `- [${doc.title}](${doc.title.replaceAll(' ', '')}.md)`;
           })
           .join('\n\n');
         const sidebar = `<!-- docs/_sidebar.md -->
 ${outline}
 `;
         await DocsManager.saveDoc(repositoryUrlEncoded, '_sidebar', sidebar);
+
+        // 完成AI分析
+        onProgress?.({
+          stage: 'AI智能分析-完成',
+          progress: 100,
+        });
       }
       return true;
     } catch (e) {
       console.error(e);
+      // 报告错误进度
+      onProgress?.({
+        stage: 'AI智能分析-失败',
+        progress: 0,
+        details: e instanceof Error ? e.message : '未知错误',
+      });
       return false;
     }
   }

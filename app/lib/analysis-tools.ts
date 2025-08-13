@@ -7,9 +7,8 @@ import {
   SecurityIssue
 } from '@/app/types';
 import { getLanguageFromExtension } from './utils';
-import { 
-  getFolderStructure 
-} from '@google/gemini-cli-core';
+import fs from 'fs/promises';
+import path from 'path';
 
 // 简单的文件节点接口
 interface SimpleFileNode {
@@ -27,19 +26,13 @@ interface SimpleFileNode {
  */
 export async function analyzeStructure(repositoryPath: string): Promise<RepositoryStructure> {
   try {
-    // 获取文件夹结构
-    const folderStructure = await getFolderStructure(repositoryPath, {
-      maxDepth: 3, // 限制深度以避免过于复杂
-      includeSize: true,
-    });
-    
-    // 解析文件夹结构为我们的格式
-    const root: FileNode = parseFolderStructure(folderStructure, repositoryPath);
+    // 获取真实的文件夹结构
+    const root = await buildFileTree(repositoryPath, path.basename(repositoryPath));
     
     // 统计文件和目录数量
     const { totalFiles, totalDirectories, languages } = countFilesAndLanguages(root);
     
-    // 简单的关键文件识别
+    // 识别关键文件
     const keyFiles = identifyKeyFiles(root);
     
     return {
@@ -68,80 +61,61 @@ export async function analyzeStructure(repositoryPath: string): Promise<Reposito
 }
 
 /**
- * 解析文件夹结构
- * @param structure 文件夹结构字符串
- * @param basePath 基础路径
+ * 构建文件树
+ * @param dirPath 目录路径
+ * @param name 目录名称
  * @returns FileNode 对象
  */
-function parseFolderStructure(structure: string, basePath: string): FileNode {
-  const lines = structure.split('\n').filter(line => line.trim() !== '');
-  const rootName = basePath.split('/').pop() || 'root';
+async function buildFileTree(dirPath: string, name: string): Promise<FileNode> {
+  const stats = await fs.stat(dirPath);
   
-  // 简单解析，实际项目中可能需要更复杂的解析逻辑
-  return {
-    name: rootName,
+  const node: FileNode = {
+    name,
     type: 'directory',
-    path: '.',
-    size: 0,
-    children: parseStructureLines(lines, 0, basePath),
+    path: path.relative(path.dirname(dirPath), dirPath),
+    size: stats.size,
   };
-}
-
-/**
- * 解析结构行
- * @param lines 行数组
- * @param indentLevel 缩进级别
- * @param basePath 基础路径
- * @returns FileNode 数组
- */
-function parseStructureLines(lines: string[], indentLevel: number, basePath: string): FileNode[] {
-  const nodes: FileNode[] = [];
-  let i = 0;
   
-  while (i < lines.length) {
-    const line = lines[i];
-    const currentIndent = line.search(/\S/); // 找到第一个非空格字符的位置
+  try {
+    const entries = await fs.readdir(dirPath, { withFileTypes: true });
+    const children: FileNode[] = [];
     
-    if (currentIndent === indentLevel) {
-      // 处理当前级别的节点
-      const isDirectory = line.includes('/');
-      const name = line.trim().replace(/[\/]$/, ''); // 移除末尾的斜杠
-      const path = name; // 简化处理
-      
-      const node: FileNode = {
-        name,
-        type: isDirectory ? 'directory' : 'file',
-        path,
-        size: 0, // 简化处理，实际项目中应该获取真实文件大小
-      };
-      
-      // 如果是目录，查找子节点
-      if (isDirectory) {
-        const childLines: string[] = [];
-        let j = i + 1;
-        
-        // 收集子节点行
-        while (j < lines.length && lines[j].search(/\S/) > indentLevel) {
-          childLines.push(lines[j]);
-          j++;
-        }
-        
-        if (childLines.length > 0) {
-          node.children = parseStructureLines(childLines, indentLevel + 2, basePath);
-        }
-        
-        i = j;
+    // 过滤掉隐藏文件和常见的不需要分析的目录
+    const filteredEntries = entries.filter(entry => 
+      !entry.name.startsWith('.') && 
+      entry.name !== 'node_modules' && 
+      entry.name !== 'dist' && 
+      entry.name !== 'build' && 
+      entry.name !== '.next' &&
+      entry.name !== '.git'
+    );
+    
+    for (const entry of filteredEntries) {
+      const fullPath = path.join(dirPath, entry.name);
+      if (entry.isDirectory()) {
+        const childNode = await buildFileTree(fullPath, entry.name);
+        children.push(childNode);
       } else {
-        i++;
+        const fileStats = await fs.stat(fullPath);
+        const language = getLanguageFromExtension(entry.name);
+        children.push({
+          name: entry.name,
+          type: 'file',
+          path: path.relative(path.dirname(dirPath), fullPath),
+          size: fileStats.size,
+          language,
+        });
       }
-      
-      nodes.push(node);
-    } else {
-      i++;
     }
+    
+    if (children.length > 0) {
+      node.children = children;
+    }
+  } catch (error) {
+    console.warn(`无法读取目录 ${dirPath}:`, error);
   }
   
-  return nodes;
+  return node;
 }
 
 /**
@@ -161,9 +135,8 @@ function countFilesAndLanguages(node: FileNode): {
   function traverse(currentNode: FileNode) {
     if (currentNode.type === 'file') {
       totalFiles++;
-      const language = getLanguageFromExtension(currentNode.name);
-      if (language !== 'Other') {
-        languages[language] = (languages[language] || 0) + 1;
+      if (currentNode.language && currentNode.language !== 'Other') {
+        languages[currentNode.language] = (languages[currentNode.language] || 0) + 1;
       }
     } else {
       totalDirectories++;
@@ -217,6 +190,18 @@ function identifyKeyFiles(node: FileNode): any[] {
           type: 'main',
           description: '入口文件',
         });
+      } else if (fileName === 'dockerfile') {
+        keyFiles.push({
+          path: fullPath,
+          type: 'config',
+          description: 'Docker 配置文件',
+        });
+      } else if (fileName === '.gitignore') {
+        keyFiles.push({
+          path: fullPath,
+          type: 'config',
+          description: 'Git 忽略文件配置',
+        });
       }
     }
     
@@ -240,15 +225,92 @@ export async function analyzeDependencies(repositoryPath: string): Promise<Depen
     const dependencies: DependencyInfo[] = [];
     
     // 尝试读取 package.json 文件
-    // 注意：在实际项目中，你可能需要使用文件读取工具来读取文件内容
-    // 这里我们简化处理，返回一些示例依赖
+    try {
+      const packageJsonPath = path.join(repositoryPath, 'package.json');
+      const packageJsonContent = await fs.readFile(packageJsonPath, 'utf-8');
+      const packageJson = JSON.parse(packageJsonContent);
+      
+      // 处理生产依赖
+      if (packageJson.dependencies) {
+        for (const [name, version] of Object.entries(packageJson.dependencies)) {
+          dependencies.push({
+            name,
+            version: version as string,
+            type: 'production'
+          });
+        }
+      }
+      
+      // 处理开发依赖
+      if (packageJson.devDependencies) {
+        for (const [name, version] of Object.entries(packageJson.devDependencies)) {
+          dependencies.push({
+            name,
+            version: version as string,
+            type: 'development'
+          });
+        }
+      }
+      
+      // 处理 peer 依赖
+      if (packageJson.peerDependencies) {
+        for (const [name, version] of Object.entries(packageJson.peerDependencies)) {
+          dependencies.push({
+            name,
+            version: version as string,
+            type: 'peer'
+          });
+        }
+      }
+    } catch (error) {
+      console.warn('无法读取 package.json 文件:', error);
+    }
     
-    // 模拟一些常见的依赖
-    dependencies.push(
-      { name: 'react', version: '^18.0.0', type: 'production', description: '用于构建用户界面的 JavaScript 库' },
-      { name: 'next', version: '^14.0.0', type: 'production', description: 'React 框架' },
-      { name: 'typescript', version: '^5.0.0', type: 'development', description: 'JavaScript 的超集' }
-    );
+    // 尝试读取 requirements.txt (Python)
+    try {
+      const requirementsPath = path.join(repositoryPath, 'requirements.txt');
+      const requirementsContent = await fs.readFile(requirementsPath, 'utf-8');
+      const lines = requirementsContent.split('\n').filter(line => line.trim() !== '' && !line.startsWith('#'));
+      
+      for (const line of lines) {
+        const [name, version] = line.split('==');
+        if (name) {
+          dependencies.push({
+            name: name.trim(),
+            version: version ? version.trim() : 'latest',
+            type: 'production'
+          });
+        }
+      }
+    } catch (error) {
+      console.warn('无法读取 requirements.txt 文件:', error);
+    }
+    
+    // 尝试读取 pom.xml (Java/Maven)
+    try {
+      const pomPath = path.join(repositoryPath, 'pom.xml');
+      const pomContent = await fs.readFile(pomPath, 'utf-8');
+      // 简单的 XML 解析，实际项目中应该使用专门的 XML 解析库
+      const dependencyMatches = pomContent.match(/<dependency>([\s\S]*?)<\/dependency>/g);
+      
+      if (dependencyMatches) {
+        for (const match of dependencyMatches) {
+          const groupIdMatch = match.match(/<groupId>(.*?)<\/groupId>/);
+          const artifactIdMatch = match.match(/<artifactId>(.*?)<\/artifactId>/);
+          const versionMatch = match.match(/<version>(.*?)<\/version>/);
+          
+          if (artifactIdMatch) {
+            dependencies.push({
+              name: artifactIdMatch[1],
+              version: versionMatch ? versionMatch[1] : 'latest',
+              type: 'production'
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('无法读取 pom.xml 文件:', error);
+    }
     
     return dependencies;
   } catch (error) {
@@ -264,39 +326,115 @@ export async function analyzeDependencies(repositoryPath: string): Promise<Depen
  */
 export async function analyzeCodeQuality(repositoryPath: string): Promise<CodeQualityMetrics> {
   try {
-    // 简化的代码质量分析
-    // 在实际项目中，你可能需要使用更复杂的工具来分析代码质量
+    const files: FileComplexity[] = [];
+    let totalComplexity = 0;
+    let maxComplexity = 0;
+    const securityIssues: SecurityIssue[] = [];
     
-    const complexity: { average: number; max: number; files: FileComplexity[] } = {
-      average: 2.5,
-      max: 10,
-      files: [
-        { path: 'src/app/page.tsx', complexity: 8, lines: 120 },
-        { path: 'src/lib/agent.ts', complexity: 10, lines: 300 },
-        { path: 'src/components/Button.tsx', complexity: 3, lines: 45 },
-      ],
+    // 遍历文件并分析复杂度
+    const analyzeDirectory = async (dirPath: string) => {
+      try {
+        const entries = await fs.readdir(dirPath, { withFileTypes: true });
+        
+        for (const entry of entries) {
+          // 跳过不需要分析的目录
+          if (entry.name.startsWith('.') || 
+              entry.name === 'node_modules' || 
+              entry.name === 'dist' || 
+              entry.name === 'build' || 
+              entry.name === '.next' ||
+              entry.name === '.git') {
+            continue;
+          }
+          
+          const fullPath = path.join(dirPath, entry.name);
+          
+          if (entry.isDirectory()) {
+            await analyzeDirectory(fullPath);
+          } else if (entry.isFile()) {
+            // 只分析代码文件
+            const ext = path.extname(entry.name).toLowerCase();
+            const codeExtensions = ['.js', '.ts', '.jsx', '.tsx', '.py', '.java', '.cpp', '.c', '.cs', '.go', '.rs'];
+            
+            if (codeExtensions.includes(ext)) {
+              try {
+                const content = await fs.readFile(fullPath, 'utf-8');
+                const lines = content.split('\n');
+                const lineCount = lines.length;
+                
+                // 简单的复杂度计算（基于函数数量和嵌套深度）
+                let complexity = 1; // 基础复杂度
+                let functionCount = 0;
+                
+                // 计算函数数量
+                if (ext === '.js' || ext === '.ts' || ext === '.jsx' || ext === '.tsx') {
+                  functionCount = (content.match(/function\s+|=>|\w+\s*\([^)]*\)\s*\{/g) || []).length;
+                } else if (ext === '.py') {
+                  functionCount = (content.match(/def\s+\w+\s*\(/g) || []).length;
+                } else if (ext === '.java' || ext === '.cpp' || ext === '.c') {
+                  functionCount = (content.match(/\w+\s+\w+\s*\([^)]*\)\s*\{/g) || []).length;
+                }
+                
+                complexity += Math.floor(functionCount / 2); // 每2个函数增加1点复杂度
+                
+                // 基于嵌套深度增加复杂度
+                let maxDepth = 0;
+                let currentDepth = 0;
+                for (const line of lines) {
+                  if (line.includes('{') || line.includes('(')) {
+                    currentDepth++;
+                    maxDepth = Math.max(maxDepth, currentDepth);
+                  }
+                  if (line.includes('}') || line.includes(')')) {
+                    currentDepth = Math.max(0, currentDepth - 1);
+                  }
+                }
+                complexity += Math.floor(maxDepth / 3); // 每3层嵌套增加1点复杂度
+                
+                // 限制复杂度在合理范围内
+                complexity = Math.min(complexity, 20);
+                
+                files.push({
+                  path: path.relative(repositoryPath, fullPath),
+                  complexity,
+                  lines: lineCount
+                });
+                
+                totalComplexity += complexity;
+                maxComplexity = Math.max(maxComplexity, complexity);
+                
+                // 检查安全问题
+                checkSecurityIssues(content, path.relative(repositoryPath, fullPath), securityIssues);
+              } catch (error) {
+                console.warn(`无法读取文件 ${fullPath}:`, error);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.warn(`无法读取目录 ${dirPath}:`, error);
+      }
     };
     
-    const securityIssues: SecurityIssue[] = [
-      {
-        type: 'hardcoded_secret',
-        severity: 'high',
-        file: 'src/config.ts',
-        line: 15,
-        description: '代码中硬编码了敏感信息',
-      },
-      {
-        type: 'insecure_dependency',
-        severity: 'medium',
-        file: 'package.json',
-        description: '使用了已知存在安全漏洞的依赖包',
-      },
-    ];
+    await analyzeDirectory(repositoryPath);
+    
+    // 计算平均复杂度
+    const averageComplexity = files.length > 0 ? totalComplexity / files.length : 0;
+    
+    // 计算重复代码（简化实现）
+    const duplication = Math.min(20, Math.floor(files.length / 10)); // 简单估算
+    
+    // 计算可维护性评分 (0-100)
+    const maintainability = Math.max(0, 100 - (averageComplexity * 5) - duplication);
     
     return {
-      complexity,
-      duplication: 5, // 重复代码百分比
-      maintainability: 75, // 可维护性评分 (0-100)
+      complexity: {
+        average: parseFloat(averageComplexity.toFixed(1)),
+        max: maxComplexity,
+        files: files.slice(0, 10) // 只返回前10个最复杂的文件
+      },
+      duplication,
+      maintainability: Math.round(maintainability),
       securityIssues,
     };
   } catch (error) {
@@ -312,5 +450,54 @@ export async function analyzeCodeQuality(repositoryPath: string): Promise<CodeQu
       maintainability: 0,
       securityIssues: [],
     };
+  }
+}
+
+/**
+ * 检查安全问题
+ * @param content 文件内容
+ * @param filePath 文件路径
+ * @param issues 安全问题数组
+ */
+function checkSecurityIssues(content: string, filePath: string, issues: SecurityIssue[]) {
+  // 检查硬编码的密钥
+  const secretPatterns = [
+    /password\s*=\s*['"][^'"]+['"]/gi,
+    /secret\s*=\s*['"][^'"]+['"]/gi,
+    /api[key]?\s*=\s*['"][^'"]+['"]/gi,
+    /token\s*=\s*['"][^'"]+['"]/gi,
+  ];
+  
+  for (const pattern of secretPatterns) {
+    const matches = content.match(pattern);
+    if (matches) {
+      issues.push({
+        type: 'hardcoded_secret',
+        severity: 'high',
+        file: filePath,
+        description: '代码中可能硬编码了敏感信息',
+      });
+    }
+  }
+  
+  // 检查 console.log 语句（在生产代码中不应该有）
+  const consoleLogMatches = content.match(/console\.log/g);
+  if (consoleLogMatches && consoleLogMatches.length > 5) {
+    issues.push({
+      type: 'debug_code',
+      severity: 'medium',
+      file: filePath,
+      description: '文件中包含过多的 console.log 语句',
+    });
+  }
+  
+  // 检查 eval 使用
+  if (content.includes('eval(')) {
+    issues.push({
+      type: 'unsafe_eval',
+      severity: 'high',
+      file: filePath,
+      description: '代码中使用了不安全的 eval 函数',
+    });
   }
 }

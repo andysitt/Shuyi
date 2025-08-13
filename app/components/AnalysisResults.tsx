@@ -35,16 +35,17 @@ import {
 import { Badge } from '@/app/components/ui/badge';
 import { cn } from '@/app/lib/utils';
 
+import { RepositoryMetadata, RepositoryStructure, DependencyInfo, CodeQualityMetrics } from '@/app/types';
+
 interface AnalysisResultsProps {
   data: {
-    metadata: any;
-    structure: any;
-    dependencies: any[];
-    codeQuality: any;
+    metadata: RepositoryMetadata;
+    structure: RepositoryStructure;
+    dependencies: DependencyInfo[];
+    codeQuality: CodeQualityMetrics;
     llmInsights: any;
     repositoryUrl: string;
   };
-  url: string;
 }
 
 export function AnalysisResults({ data }: AnalysisResultsProps) {
