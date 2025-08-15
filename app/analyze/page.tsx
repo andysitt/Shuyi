@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/app/components/ui/button';
@@ -115,65 +117,6 @@ export default function AnalysisProgressPage() {
     setRepositoryUrl(decodeURIComponent(url));
   }, []);
 
-  // 检查是否有预填充的URL
-  useEffect(() => {
-    const url = searchParams.get('url');
-    if (url) {
-      updateUrl(url);
-    }
-  }, [searchParams, updateUrl]);
-
-  // 清理定时器
-  useEffect(() => {
-    return () => {
-      if (progressInterval.current) {
-        clearInterval(progressInterval.current);
-      }
-    };
-  }, []);
-
-  const startAnalysis = useCallback(
-    async (url?: string) => {
-      const analysisUrl = url || repositoryUrl;
-      if (!analysisUrl) {
-        setError('请输入GitHub仓库URL');
-        return;
-      }
-
-      try {
-        setIsAnalyzing(true);
-        setError(null);
-        setProgress(0);
-        setCurrentStage('初始化分析...');
-
-        // 启动分析
-        const response = await fetch('/api/analyze', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ repositoryUrl: analysisUrl }),
-        });
-
-        const data = await response.json();
-
-        if (!data.success) {
-          throw new Error(data.error || '分析启动失败');
-        }
-
-        // 保存分析ID用于轮询进度
-        setAnalysisId(data.analysisId);
-
-        // 开始轮询进度
-        startProgressPolling(data.analysisId);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : '分析启动失败');
-        setIsAnalyzing(false);
-      }
-    },
-    [repositoryUrl],
-  );
-
   const startProgressPolling = useCallback(
     (id: string) => {
       if (progressInterval.current) {
@@ -229,6 +172,87 @@ export default function AnalysisProgressPage() {
       }, 1000); // 每秒轮询一次
     },
     [router, repositoryUrl],
+  );
+
+  const checkAnalysisStatus = useCallback(async (url: string) => {
+    try {
+      const response = await fetch(`/api/analysis/status-by-url?repositoryUrl=${encodeURIComponent(url)}`);
+      const data = await response.json();
+
+      if (data.success && data.analysis) {
+        const { id, status, progress, stage } = data.analysis;
+        if (status === 'pending' || status === 'analyzing') {
+          setAnalysisId(id);
+          setIsAnalyzing(true);
+          setProgress(progress);
+          setCurrentStage(stage);
+          startProgressPolling(id);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to check analysis status:", err);
+    }
+  }, [startProgressPolling]);
+
+  // 检查是否有预填充的URL, 并检查其状态
+  useEffect(() => {
+    const url = searchParams.get('url');
+    if (url) {
+      const decodedUrl = decodeURIComponent(url);
+      updateUrl(decodedUrl);
+      checkAnalysisStatus(decodedUrl);
+    }
+  }, [searchParams, updateUrl, checkAnalysisStatus]);
+
+  // 清理定时器
+  useEffect(() => {
+    return () => {
+      if (progressInterval.current) {
+        clearInterval(progressInterval.current);
+      }
+    };
+  }, []);
+
+  const startAnalysis = useCallback(
+    async (url?: string) => {
+      const analysisUrl = url || repositoryUrl;
+      if (!analysisUrl) {
+        setError('请输入GitHub仓库URL');
+        return;
+      }
+
+      try {
+        setIsAnalyzing(true);
+        setError(null);
+        setProgress(0);
+        setCurrentStage('初始化分析...');
+
+        // 启动分析
+        const response = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ repositoryUrl: analysisUrl }),
+        });
+
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error(data.error || '分析启动失败');
+        }
+
+        // 保存分析ID用于轮询进度
+        setAnalysisId(data.analysisId);
+
+        // 开始轮询进度
+        startProgressPolling(data.analysisId);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '分析启动失败');
+        setIsAnalyzing(false);
+      }
+    },
+    [repositoryUrl, startProgressPolling],
   );
 
   const cancelAnalysis = useCallback(async () => {
@@ -296,6 +320,7 @@ export default function AnalysisProgressPage() {
       defaultUrl={url || ''}
     />
   ));
+  RInput.displayName = 'RInput';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">

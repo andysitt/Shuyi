@@ -13,22 +13,10 @@ CREATE TABLE IF NOT EXISTS analysis_results (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
--- 创建analysis_progress表
-CREATE TABLE IF NOT EXISTS analysis_progress (
-    id SERIAL PRIMARY KEY,
-    repository_url TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'pending',
-    progress INTEGER NOT NULL DEFAULT 0,
-    stage TEXT NOT NULL,
-    details TEXT,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+
 -- 创建索引
 CREATE INDEX IF NOT EXISTS idx_analysis_results_repository_url ON analysis_results(repository_url);
 CREATE INDEX IF NOT EXISTS idx_analysis_results_created_at ON analysis_results(created_at);
-CREATE INDEX IF NOT EXISTS idx_analysis_progress_repository_url ON analysis_progress(repository_url);
-CREATE INDEX IF NOT EXISTS idx_analysis_progress_status ON analysis_progress(status);
 
 -- 创建markdown_docs表
 CREATE TABLE IF NOT EXISTS markdown_docs (

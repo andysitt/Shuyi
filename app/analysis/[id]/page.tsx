@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { AnalysisResults } from '@/app/components/AnalysisResults';
 import { Button } from '@/app/components/ui/button';
@@ -20,13 +20,8 @@ export default function AnalysisDetailPage() {
   const router = useRouter();
   const { id } = params;
 
-  useEffect(() => {
-    if (id) {
-      fetchAnalysisData();
-    }
-  }, [id]);
-
-  const fetchAnalysisData = async () => {
+  const fetchAnalysisData = useCallback(async () => {
+    if (!id) return;
     try {
       setLoading(true);
       setError(null);
@@ -45,7 +40,11 @@ export default function AnalysisDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    fetchAnalysisData();
+  }, [fetchAnalysisData]);
 
   const handleBack = () => {
     router.push('/');

@@ -8,37 +8,27 @@ export async function GET(
   try {
     const { id } = params;
 
-    // 验证ID格式
-    const idNum = parseInt(id);
-    if (isNaN(idNum)) {
+    if (!id) {
       return NextResponse.json(
-        { success: false, error: "无效的进度ID" },
+        { success: false, error: "进度ID不能为空" },
         { status: 400 }
       );
     }
 
     // 获取分析进度
-    const progress = await DatabaseAccess.getAnalysisProgressById(idNum);
+    const progress = await DatabaseAccess.getAnalysisProgressById(id);
 
     if (!progress) {
       return NextResponse.json(
-        { success: false, error: "未找到分析进度" },
+        { success: false, error: "未找到分析进度或已过期" },
         { status: 404 }
       );
     }
 
+    // The progress object from Redis is already in the desired format.
     return NextResponse.json({
       success: true,
-      progress: {
-        id: progress.id,
-        repositoryUrl: progress.repositoryUrl,
-        status: progress.status,
-        progress: progress.progress,
-        stage: progress.stage,
-        details: progress.details,
-        createdAt: progress.createdAt,
-        updatedAt: progress.updatedAt,
-      },
+      progress: progress,
     });
   } catch (error) {
     console.error("获取分析进度失败:", error);

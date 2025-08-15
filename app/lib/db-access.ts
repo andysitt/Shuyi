@@ -1,12 +1,12 @@
-import { QueryResult } from "pg";
-import { connectToDatabase, query } from "@/app/lib/db";
+import { QueryResult } from 'pg';
+import { connectToDatabase, query } from '@/app/lib/db';
+import redisClient from '@/app/lib/redis-client';
 import {
   RepositoryMetadata,
   RepositoryStructure,
   DependencyInfo,
   CodeQualityMetrics,
-  LLMInsights,
-} from "@/app/types";
+} from '@/app/types';
 
 // AnalysisResult接口
 export interface IAnalysisResult {
@@ -21,22 +21,25 @@ export interface IAnalysisResult {
   llmInsights: string;
   createdAt: Date;
   updatedAt: Date;
-  status: "completed" | "failed";
+  status: 'completed' | 'failed';
 }
 
-// AnalysisProgress接口
+// AnalysisProgress接口 (Redis-based)
 export interface IAnalysisProgress {
-  id: number;
+  id: string; // Analysis ID
   repositoryUrl: string;
-  status: "pending" | "analyzing" | "completed" | "failed";
+  status: 'pending' | 'analyzing' | 'completed' | 'failed';
   progress: number;
   stage: string;
   details: string;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string; // ISO 8601 string
+  updatedAt: string; // ISO 8601 string
 }
 
+const ANALYSIS_PROGRESS_TTL = 24 * 60 * 60; // 24 hours
+
 export class DatabaseAccess {
+  // --- Analysis Result Methods (PostgreSQL) ---
   static async saveAnalysisResult(result: {
     repositoryUrl: string;
     owner: string;
@@ -46,7 +49,7 @@ export class DatabaseAccess {
     dependencies: DependencyInfo[];
     codeQuality: CodeQualityMetrics;
     llmInsights: string;
-    status: "completed" | "failed";
+    status: 'completed' | 'failed';
   }): Promise<IAnalysisResult> {
     await connectToDatabase();
 
@@ -89,7 +92,7 @@ export class DatabaseAccess {
   ): Promise<IAnalysisResult | null> {
     await connectToDatabase();
 
-    const text = "SELECT * FROM analysis_results WHERE repository_url = $1";
+    const text = 'SELECT * FROM analysis_results WHERE repository_url = $1';
     const values = [repositoryUrl];
 
     const res: QueryResult = await query(text, values);
@@ -105,7 +108,7 @@ export class DatabaseAccess {
   ): Promise<IAnalysisResult | null> {
     await connectToDatabase();
 
-    const text = "SELECT * FROM analysis_results WHERE id = $1";
+    const text = 'SELECT * FROM analysis_results WHERE id = $1';
     const values = [id];
 
     const res: QueryResult = await query(text, values);
@@ -119,165 +122,12 @@ export class DatabaseAccess {
   static async getAllAnalysisResults(): Promise<IAnalysisResult[]> {
     await connectToDatabase();
 
-    const text = "SELECT * FROM analysis_results ORDER BY created_at DESC";
+    const text = 'SELECT * FROM analysis_results ORDER BY created_at DESC';
     const res: QueryResult = await query(text);
 
     return res.rows.map((row) => this.mapAnalysisResultRow(row));
   }
 
-  static async saveAnalysisProgress(progress: {
-    repositoryUrl: string;
-    status?: "pending" | "analyzing" | "completed" | "failed";
-    progress?: number;
-    stage: string;
-    details?: string;
-  }): Promise<IAnalysisProgress> {
-    await connectToDatabase();
-
-    const text = `
-      INSERT INTO analysis_progress(
-        repository_url, status, progress, stage, details, created_at, updated_at
-      ) VALUES($1, $2, $3, $4, $5, NOW(), NOW())
-      ON CONFLICT (repository_url) 
-      DO UPDATE SET
-        status = EXCLUDED.status,
-        progress = EXCLUDED.progress,
-        stage = EXCLUDED.stage,
-        details = EXCLUDED.details,
-        updated_at = NOW()
-      RETURNING *;
-    `;
-
-    const values = [
-      progress.repositoryUrl,
-      progress.status || "pending",
-      progress.progress || 0,
-      progress.stage,
-      progress.details || null,
-    ];
-
-    const res: QueryResult = await query(text, values);
-    return this.mapAnalysisProgressRow(res.rows[0]);
-  }
-
-  static async getAnalysisProgress(
-    repositoryUrl: string
-  ): Promise<IAnalysisProgress | null> {
-    await connectToDatabase();
-
-    const text = "SELECT * FROM analysis_progress WHERE repository_url = $1";
-    const values = [repositoryUrl];
-
-    const res: QueryResult = await query(text, values);
-    if (res.rows.length === 0) {
-      return null;
-    }
-
-    return this.mapAnalysisProgressRow(res.rows[0]);
-  }
-
-  static async getAnalysisProgressById(
-    id: number
-  ): Promise<IAnalysisProgress | null> {
-    await connectToDatabase();
-
-    const text = "SELECT * FROM analysis_progress WHERE id = $1";
-    const values = [id];
-
-    const res: QueryResult = await query(text, values);
-    if (res.rows.length === 0) {
-      return null;
-    }
-
-    return this.mapAnalysisProgressRow(res.rows[0]);
-  }
-
-  static async updateAnalysisProgress(
-    id: number,
-    updates: Partial<IAnalysisProgress>
-  ): Promise<IAnalysisProgress | null> {
-    await connectToDatabase();
-
-    const fields: string[] = [];
-    const values: any[] = [];
-    let index = 1;
-
-    if (updates.status !== undefined) {
-      fields.push(`status = $${index++}`);
-      values.push(updates.status);
-    }
-
-    if (updates.progress !== undefined) {
-      fields.push(`progress = $${index++}`);
-      values.push(updates.progress);
-    }
-
-    if (updates.stage !== undefined) {
-      fields.push(`stage = $${index++}`);
-      values.push(updates.stage);
-    }
-
-    if (updates.details !== undefined) {
-      fields.push(`details = $${index++}`);
-      values.push(updates.details);
-    }
-
-    fields.push(`updated_at = NOW()`);
-    values.push(id);
-
-    const text = `
-      UPDATE analysis_progress 
-      SET ${fields.join(", ")}
-      WHERE id = $${index}
-      RETURNING *;
-    `;
-
-    const res: QueryResult = await query(text, values);
-    if (res.rows.length === 0) {
-      return null;
-    }
-
-    return this.mapAnalysisProgressRow(res.rows[0]);
-  }
-
-  static async createAnalysisProgress(progress: {
-    repositoryUrl: string;
-    status?: "pending" | "analyzing" | "completed" | "failed";
-    progress?: number;
-    stage: string;
-    details?: string;
-  }): Promise<IAnalysisProgress> {
-    await connectToDatabase();
-
-    const text = `
-      INSERT INTO analysis_progress(
-        repository_url, status, progress, stage, details, created_at, updated_at
-      ) VALUES($1, $2, $3, $4, $5, NOW(), NOW())
-      RETURNING *;
-    `;
-
-    const values = [
-      progress.repositoryUrl,
-      progress.status || "pending",
-      progress.progress || 0,
-      progress.stage,
-      progress.details || null,
-    ];
-
-    const res: QueryResult = await query(text, values);
-    return this.mapAnalysisProgressRow(res.rows[0]);
-  }
-
-  static async deleteAnalysisProgress(repositoryUrl: string): Promise<void> {
-    await connectToDatabase();
-
-    const text = "DELETE FROM analysis_progress WHERE repository_url = $1";
-    const values = [repositoryUrl];
-
-    await query(text, values);
-  }
-
-  // 映射数据库行到AnalysisResult对象
   private static mapAnalysisResultRow(row: any): IAnalysisResult {
     return {
       id: row.id,
@@ -285,23 +135,23 @@ export class DatabaseAccess {
       owner: row.owner,
       repo: row.repo,
       metadata:
-        typeof row.metadata === "string"
+        typeof row.metadata === 'string'
           ? JSON.parse(row.metadata)
           : row.metadata,
       structure:
-        typeof row.structure === "string"
+        typeof row.structure === 'string'
           ? JSON.parse(row.structure)
           : row.structure,
       dependencies:
-        typeof row.dependencies === "string"
+        typeof row.dependencies === 'string'
           ? JSON.parse(row.dependencies)
           : row.dependencies,
       codeQuality:
-        typeof row.code_quality === "string"
+        typeof row.code_quality === 'string'
           ? JSON.parse(row.code_quality)
           : row.code_quality,
       llmInsights:
-        typeof row.llm_insights === "string"
+        typeof row.llm_insights === 'string'
           ? JSON.parse(row.llm_insights)
           : row.llm_insights,
       createdAt: row.created_at,
@@ -310,17 +160,120 @@ export class DatabaseAccess {
     };
   }
 
-  // 映射数据库行到AnalysisProgress对象
-  private static mapAnalysisProgressRow(row: any): IAnalysisProgress {
-    return {
-      id: row.id,
-      repositoryUrl: row.repository_url,
-      status: row.status,
-      progress: row.progress,
-      stage: row.stage,
-      details: row.details,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
+  // --- Analysis Progress Methods (Redis) ---
+
+  private static getProgressKey(id: string): string {
+    return `progress:${id}`;
+  }
+
+  private static getUrlToIdKey(url: string): string {
+    const encodedUrl = Buffer.from(url).toString('base64');
+    return `url-to-id:${encodedUrl}`;
+  }
+
+  static async createAnalysisProgress(progress: {
+    id: string;
+    repositoryUrl: string;
+    status?: 'pending' | 'analyzing' | 'completed' | 'failed';
+    progress?: number;
+    stage: string;
+    details?: string;
+  }): Promise<IAnalysisProgress> {
+    const now = new Date().toISOString();
+    const newProgress: IAnalysisProgress = {
+      id: progress.id,
+      repositoryUrl: progress.repositoryUrl,
+      status: progress.status || 'pending',
+      progress: progress.progress || 0,
+      stage: progress.stage,
+      details: progress.details || '',
+      createdAt: now,
+      updatedAt: now,
     };
+
+    const progressKey = this.getProgressKey(progress.id);
+    const urlToIdKey = this.getUrlToIdKey(progress.repositoryUrl);
+
+    const multi = redisClient.multi();
+    multi.set(progressKey, JSON.stringify(newProgress), { EX: ANALYSIS_PROGRESS_TTL });
+    multi.set(urlToIdKey, progress.id, { EX: ANALYSIS_PROGRESS_TTL });
+    await multi.exec();
+
+    return newProgress;
+  }
+
+  static async getAnalysisProgressById(
+    id: string
+  ): Promise<IAnalysisProgress | null> {
+    const key = this.getProgressKey(id);
+    const data = await redisClient.get(key);
+
+    if (!data) {
+      return null;
+    }
+
+    const progress = JSON.parse(data) as IAnalysisProgress;
+
+    // Refresh the TTL on both keys to keep them in sync
+    const urlToIdKey = this.getUrlToIdKey(progress.repositoryUrl);
+    const multi = redisClient.multi();
+    multi.expire(key, ANALYSIS_PROGRESS_TTL);
+    multi.expire(urlToIdKey, ANALYSIS_PROGRESS_TTL);
+    await multi.exec();
+
+    return progress;
+  }
+
+  static async getAnalysisProgressByUrl(
+    url: string
+  ): Promise<IAnalysisProgress | null> {
+    const urlToIdKey = this.getUrlToIdKey(url);
+    const analysisId = await redisClient.get(urlToIdKey);
+
+    if (!analysisId) {
+      return null;
+    }
+    return this.getAnalysisProgressById(analysisId);
+  }
+
+  static async updateAnalysisProgress(
+    id: string,
+    updates: Partial<Omit<IAnalysisProgress, 'id' | 'createdAt'>>
+  ): Promise<IAnalysisProgress | null> {
+    const key = this.getProgressKey(id);
+    // Note: getAnalysisProgressById also refreshes TTL, which is fine for an update.
+    const existing = await this.getAnalysisProgressById(id);
+
+    if (!existing) {
+      return null;
+    }
+
+    const updatedProgress: IAnalysisProgress = {
+      ...existing,
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    };
+
+    await redisClient.set(key, JSON.stringify(updatedProgress), {
+      EX: ANALYSIS_PROGRESS_TTL,
+    });
+
+    return updatedProgress;
+  }
+
+  static async deleteAnalysisProgress(id: string): Promise<void> {
+    const progressKey = this.getProgressKey(id);
+    const rawData = await redisClient.get(progressKey);
+
+    const multi = redisClient.multi();
+    multi.del(progressKey);
+
+    if (rawData) {
+      const progress = JSON.parse(rawData) as IAnalysisProgress;
+      const urlToIdKey = this.getUrlToIdKey(progress.repositoryUrl);
+      multi.del(urlToIdKey);
+    }
+    
+    await multi.exec();
   }
 }

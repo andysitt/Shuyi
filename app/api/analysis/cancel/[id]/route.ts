@@ -8,20 +8,15 @@ export async function POST(
   try {
     const { id } = params;
 
-    // 验证ID格式
-    const idNum = parseInt(id);
-    if (isNaN(idNum)) {
+    if (!id) {
       return NextResponse.json(
-        { success: false, error: "无效的进度ID" },
+        { success: false, error: "进度ID不能为空" },
         { status: 400 }
       );
     }
 
-    // 更新分析状态为已取消
-    await DatabaseAccess.updateAnalysisProgress(idNum, {
-      status: "failed",
-      details: "用户取消了分析",
-    });
+    // 删除分析进度记录
+    await DatabaseAccess.deleteAnalysisProgress(id);
 
     return NextResponse.json({
       success: true,

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { v4 as uuidv4 } from 'uuid';
 import { GitHubClient } from '@/app/lib/github-client';
 import { AnalysisOrchestrator } from '@/app/lib/analysis-orchestrator';
 import { cacheManager, tempManager } from '@/app/lib/cache-manager';
@@ -17,8 +18,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const analysisId = uuidv4();
+
     // 创建分析进度记录
-    const progressRecord = await DatabaseAccess.createAnalysisProgress({
+    await DatabaseAccess.createAnalysisProgress({
+      id: analysisId,
       repositoryUrl,
       status: 'pending',
       progress: 0,
@@ -26,15 +30,13 @@ export async function POST(request: NextRequest) {
       details: '正在初始化分析...',
     });
 
-    const progressId = progressRecord.id.toString();
-
     // 更新进度
     const updateProgress = async (
       progress: number,
       stage: string,
       details?: string,
     ) => {
-      await DatabaseAccess.updateAnalysisProgress(parseInt(progressId), {
+      await DatabaseAccess.updateAnalysisProgress(analysisId, {
         progress,
         stage,
         details,
@@ -53,7 +55,7 @@ export async function POST(request: NextRequest) {
         const cached = await cacheManager.get(cacheKey);
         if (cached) {
           await updateProgress(100, '完成', '分析完成');
-          await DatabaseAccess.updateAnalysisProgress(parseInt(progressId), {
+          await DatabaseAccess.updateAnalysisProgress(analysisId, {
             status: 'completed',
             progress: 100,
             stage: '完成',
@@ -107,7 +109,7 @@ export async function POST(request: NextRequest) {
         const validation = await githubClient.validateRepository(repositoryUrl);
 
         if (!validation.isValid) {
-          await DatabaseAccess.updateAnalysisProgress(parseInt(progressId), {
+          await DatabaseAccess.updateAnalysisProgress(analysisId, {
             status: 'failed',
             details: validation.error,
           });
@@ -134,7 +136,7 @@ export async function POST(request: NextRequest) {
 
           // 配置LLM分析
           if (!process.env.LLM_API_KEY) {
-            await DatabaseAccess.updateAnalysisProgress(parseInt(progressId), {
+            await DatabaseAccess.updateAnalysisProgress(analysisId, {
               status: 'failed',
               details: 'LLM API密钥未配置，请设置 LLM_API_KEY',
             });
@@ -207,7 +209,7 @@ export async function POST(request: NextRequest) {
           await DatabaseAccess.saveAnalysisResult(dbResult);
 
           await updateProgress(100, '完成', '分析完成');
-          await DatabaseAccess.updateAnalysisProgress(parseInt(progressId), {
+          await DatabaseAccess.updateAnalysisProgress(analysisId, {
             status: 'completed',
             progress: 100,
             stage: '完成',
@@ -215,7 +217,7 @@ export async function POST(request: NextRequest) {
           });
         } catch (error) {
           console.error('LLM分析错误:', error);
-          await DatabaseAccess.updateAnalysisProgress(parseInt(progressId), {
+          await DatabaseAccess.updateAnalysisProgress(analysisId, {
             status: 'failed',
             details: error instanceof Error ? error.message : '分析失败',
           });
@@ -272,7 +274,7 @@ export async function POST(request: NextRequest) {
         }
       } catch (error) {
         console.error('分析错误:', error);
-        await DatabaseAccess.updateAnalysisProgress(parseInt(progressId), {
+        await DatabaseAccess.updateAnalysisProgress(analysisId, {
           status: 'failed',
           details: error instanceof Error ? error.message : '分析失败',
         });
@@ -282,7 +284,7 @@ export async function POST(request: NextRequest) {
     // 立即返回进度ID
     return NextResponse.json({
       success: true,
-      analysisId: progressId,
+      analysisId: analysisId,
       message: '分析已启动',
     });
   } catch (error) {

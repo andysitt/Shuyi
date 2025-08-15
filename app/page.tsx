@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, Plus, Star, Code, Calendar } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
@@ -34,9 +34,23 @@ export default function Home() {
     fetchProjects();
   }, []);
 
+  const filterProjects = useCallback(() => {
+    if (!searchTerm) {
+      setFilteredProjects(projects);
+      return;
+    }
+
+    const filtered = projects.filter(
+      (project) =>
+        project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        project.description.toLowerCase().includes(searchTerm.toLowerCase()),
+    );
+    setFilteredProjects(filtered);
+  }, [searchTerm, projects]);
+
   useEffect(() => {
     filterProjects();
-  }, [searchTerm, projects]);
+  }, [filterProjects]);
 
   const fetchProjects = async () => {
     try {
@@ -51,20 +65,6 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const filterProjects = () => {
-    if (!searchTerm) {
-      setFilteredProjects(projects);
-      return;
-    }
-
-    const filtered = projects.filter(
-      (project) =>
-        project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        project.description.toLowerCase().includes(searchTerm.toLowerCase()),
-    );
-    setFilteredProjects(filtered);
   };
 
   const handleNewAnalysis = () => {

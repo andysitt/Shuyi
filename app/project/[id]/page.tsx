@@ -3,6 +3,7 @@
 import Head from 'next/head';
 import Script from 'next/script';
 import './index.css';
+import 'docsify/lib/themes/vue.css';
 import { useEffect } from 'react';
 
 const DocsifyPage = ({ params }: { params: { id: string } }) => {
@@ -58,14 +59,7 @@ const DocsifyPage = ({ params }: { params: { id: string } }) => {
         />
       </Head>
 
-      <link
-        rel="stylesheet"
-        href="//cdn.jsdelivr.net/npm/docsify@4/lib/themes/vue.css"
-      />
-      <link
-        rel="stylesheet"
-        href="//cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.css"
-      />
+      {/* Styles are imported directly in the component */}
 
       <Script
         src="//cdn.jsdelivr.net/npm/mermaid@9.4.3/dist/mermaid.min.js"
