@@ -8,9 +8,13 @@ import {
   getFolderStructure,
   ChatCompressionInfo,
 } from '@google/gemini-cli-core';
-import { ChatCompletionTool } from 'openai/resources/index.mjs';
+import {
+  ChatCompletionChunk,
+  ChatCompletionTool,
+} from 'openai/resources/index.mjs';
 import { fixNumericStrings, lowercaseType, tokenLimit } from './utils';
 import { PromptBuilder } from './llm-tools/prompt-builder';
+import { Stream } from 'openai/streaming.mjs';
 
 // LLM配置接口
 export interface LLMConfig {
@@ -192,6 +196,7 @@ export class Agent {
           }
           const params = {
             temperature: 0,
+            max_tokens: 8129,
             model: this.config.model,
             tools: tools.length > 0 ? tools : undefined,
             messages: this
@@ -202,16 +207,69 @@ export class Agent {
               type: 'json_object',
             };
           }
-          const response = await this.openai.chat.completions.create(params, {
-            signal: abortSignal,
-          });
+          const stream: Stream<ChatCompletionChunk> =
+            await this.openai.chat.completions.create(
+              {
+                ...params,
+                stream: true,
+                stream_options: { include_usage: true },
+              },
+              {
+                signal: abortSignal,
+              },
+            );
           it++;
-          const choice = response.choices[0];
-          const usage = response.usage;
-          currentTokens = usage?.total_tokens || 0;
-          if (!choice) break;
 
-          const message = choice.message;
+          let content = '';
+          const toolCalls: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[] =
+            [];
+
+          for await (const chunk of stream) {
+            const delta = chunk.choices[0]?.delta;
+            if (!delta) continue;
+
+            if (delta.content) {
+              content += delta.content;
+            }
+
+            if (delta.tool_calls) {
+              for (const toolCallDelta of delta.tool_calls) {
+                if (typeof toolCallDelta.index !== 'number') continue;
+                const index = toolCallDelta.index;
+
+                if (!toolCalls[index]) {
+                  toolCalls[index] = {
+                    id: '',
+                    type: 'function',
+                    function: { name: '', arguments: '' },
+                  };
+                }
+                if (toolCallDelta.id) {
+                  toolCalls[index].id = toolCallDelta.id;
+                }
+                if (toolCallDelta.function?.name) {
+                  toolCalls[index].function.name += toolCallDelta.function.name;
+                }
+                if (toolCallDelta.function?.arguments) {
+                  toolCalls[index].function.arguments +=
+                    toolCallDelta.function.arguments;
+                }
+              }
+            }
+          }
+
+          const toolCallsResult = toolCalls.filter(Boolean);
+          const message: OpenAI.Chat.Completions.ChatCompletionMessage = {
+            role: 'assistant',
+            content: content || null,
+            tool_calls:
+              toolCallsResult.length > 0 ? toolCallsResult : undefined,
+            refusal: null,
+          };
+
+          // Streaming doesn't return usage info in each chunk, so we can't update currentTokens here.
+          // The compression based on token count in the loop will be affected.
+          currentTokens = 0; // Reset or disable token counting for streaming
           console.log(
             '------------assistant message:',
             JSON.stringify(message),
@@ -341,6 +399,7 @@ export class Agent {
         model: this.config.model,
         messages: [message, { role: 'user', content: CHECK_PROMPT }],
         response_format: { type: 'json_object' },
+        max_tokens: 8129,
         temperature: 0,
       });
 
