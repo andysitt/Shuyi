@@ -6,7 +6,7 @@ import {
   DependencyInfo,
   CodeQualityMetrics,
 } from '@/app/types';
-import { Agent, AgentResult } from './agent';
+import { Agent } from './agent';
 import { PromptBuilder } from './llm-tools/prompt-builder';
 import { DocsManager } from './docs-manager';
 import {
@@ -14,6 +14,10 @@ import {
   analyzeDependencies,
   analyzeCodeQuality,
 } from './analysis-tools';
+import { ChatOpenAI } from '@langchain/openai';
+import { ChatPromptTemplate } from '@langchain/core/prompts';
+import { StringOutputParser } from '@langchain/core/output_parsers';
+import { JsonOutputParser } from '@langchain/core/output_parsers';
 
 // 分析配置
 export interface AnalysisConfig {
@@ -84,13 +88,10 @@ export class AnalysisOrchestrator {
 
     try {
       onProgress?.({ stage: '分析结构信息', progress: 20 });
-      // 进行结构分析
       const structure = await this.analyzeStructure(repositoryPath);
       onProgress?.({ stage: '分析依赖信息', progress: 30 });
-      // 进行依赖分析
       const dependencies = await this.analyzeDependencies(repositoryPath);
       onProgress?.({ stage: '分析代码质量', progress: 40 });
-      // 进行代码质量分析
       const codeQuality = await this.analyzeCodeQuality(repositoryPath);
       onProgress?.({ stage: '开始 AI 智能分析', progress: 45 });
       await this.performLLMAnalysis(repositoryUrl, onProgress);
@@ -107,19 +108,55 @@ export class AnalysisOrchestrator {
     }
   }
 
-  // 执行LLM智能分析
+  // 执行LLM智能分析 - 使用LangChain Chain重构
   private async performLLMAnalysis(
     repositoryUrl: string,
     onProgress?: (progress: AnalysisProgress) => void,
   ): Promise<boolean> {
     try {
-      onProgress?.({ stage: 'AI智能分析-制定分析计划', progress: 60 });
-      const plan = await this.plan();
+      const llm = new ChatOpenAI({
+        apiKey: this.config.llmConfig.apiKey,
+        modelName: this.config.llmConfig.model,
+        temperature: 0,
+        configuration: {
+          baseURL: this.config.llmConfig.baseURL,
+        },
+      });
 
+      // 1. 创建计划链
+      onProgress?.({ stage: 'AI智能分析-制定分析计划', progress: 60 });
+      const plannerPrompt = ChatPromptTemplate.fromMessages([
+        ['system', PromptBuilder.SYSTEM_PROMPT_PLANNER],
+        ['human', '{input}'],
+      ]);
+      const plannerChain = plannerPrompt
+        .pipe(llm)
+        .pipe(new StringOutputParser());
+      const plan = await plannerChain.invoke({
+        input: `请阅读当前代码库，编制出相应的文档编写计划。在此过程中你可以使用工具来进行查询项目结构、阅读代码等必要的操作。最后请输出一份Markdown格式的文档编写计划。`,
+      });
+
+      // 2. 创建任务调度链
       onProgress?.({ stage: 'AI智能分析-分解分析任务', progress: 70 });
-      const tasks = await this.buildTasks(plan.content);
-      const res = JSON.parse(tasks.content);
-      const taskList = res.document_tasks;
+      console.log('------plan', plan);
+      const schedulerPrompt = ChatPromptTemplate.fromMessages([
+        ['system', PromptBuilder.SYSTEM_PROMPT_SCHEDULER],
+        [
+          'human',
+          `请根据以下文档编写计划来生成一份文档编写任务列表，以下是具体的计划
+------------------------------
+{plan}`,
+        ],
+      ]);
+      const schedulerChain = schedulerPrompt
+        .pipe(llm)
+        .pipe(new JsonOutputParser());
+      const tasksResult = await schedulerChain.invoke({
+        plan,
+        json: PromptBuilder.SYSTEM_PROMPT_SCHEDULER_JSON,
+      });
+      console.log('-----tasksResult', tasksResult);
+      const taskList = (tasksResult as any).document_tasks;
 
       if (Array.isArray(taskList)) {
         const repositoryUrlEncoded = repositoryUrl
@@ -132,7 +169,8 @@ export class AnalysisOrchestrator {
           outline: '按当前项目内容自由发挥',
           targetReader: '项目的目标用户',
         });
-        // 并行执行所有文档编写任务
+
+        // 3. 并行执行所有文档编写任务 (使用重构后的Agent)
         const writePromises = taskList.map(async (task, index) => {
           try {
             const result = await this.write(task);
@@ -141,7 +179,6 @@ export class AnalysisOrchestrator {
               task.title.replaceAll(' ', ''),
               result.content,
             );
-            // 报告进度
             onProgress?.({
               stage: 'AI智能分析-编写分析文档',
               progress: 80 + Math.floor(((index + 1) / taskList.length) * 20),
@@ -153,18 +190,7 @@ export class AnalysisOrchestrator {
           }
         });
 
-        // 等待所有任务完成
-        const results = await Promise.allSettled(writePromises);
-
-        // 检查是否有任务失败
-        const failedTasks = results.filter(
-          (result): result is PromiseRejectedResult =>
-            result.status === 'rejected',
-        );
-
-        if (failedTasks.length > 0) {
-          console.warn(`有 ${failedTasks.length} 个文档编写任务失败`);
-        }
+        await Promise.all(writePromises);
 
         // 生成侧边栏
         const outline = taskList
@@ -172,63 +198,24 @@ export class AnalysisOrchestrator {
             return `- [${doc.title}](${doc.title.replaceAll(' ', '')}.md)`;
           })
           .join('\n\n');
-        const sidebar = `<!-- docs/_sidebar.md -->
-${outline}
-`;
+        const sidebar = `<!-- docs/_sidebar.md -->\n${outline}`;
         await DocsManager.saveDoc(repositoryUrlEncoded, '_sidebar', sidebar);
 
-        // 完成AI分析
-        onProgress?.({
-          stage: 'AI智能分析-完成',
-          progress: 100,
-        });
+        onProgress?.({ stage: 'AI智能分析-完成', progress: 100 });
       }
       return true;
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      // 报告错误进度
       onProgress?.({
         stage: 'AI智能分析-失败',
         progress: 0,
-        details: e instanceof Error ? e.message : '未知错误',
+        details: e.message || '未知错误',
       });
       return false;
     }
   }
 
-  // 制定文档编写计划
-  private async plan(): Promise<AgentResult> {
-    const actionPrompt = `请阅读当前代码库，编制出相应的文档编写计划
-    在此过程中你可以使用工具来进行查询项目结构、阅读代码等必要的操作
-    代码库中已有的文档也可以作为参考
-    如果文档和代码有不一致的地方，请以代码为准
-    最后请输出一份Markdown格式的文档编写计划
-    `;
-    const agent = new Agent(this.config.llmConfig, this.basePath);
-    const result = await agent.execute({
-      actionPrompt,
-      rolePrompt: PromptBuilder.SYSTEM_PROMPT_PLANNER,
-    });
-    return result;
-  }
-
-  // 根据编写计划制定编写任务
-  private async buildTasks(plan: string) {
-    const actionPrompt = `请根据以下文档编写计划来生成一份文档编写任务列表，以下是具体的计划
-    ------------------------------
-  ${plan}
-    `;
-    const agent = new Agent(this.config.llmConfig, this.basePath);
-    const result = await agent.execute({
-      actionPrompt,
-      rolePrompt: PromptBuilder.SYSTEM_PROMPT_SCHEDULER,
-      withEnv: false,
-      jsonOutput: true,
-    });
-    return result;
-  }
-
-  // 执行具体编写任务
+  // 执行具体编写任务 - 此方法保持不变，因为它需要一个具备工具使用能力的完整Agent
   private async write(task: {
     title: string;
     goal: string;
@@ -258,6 +245,7 @@ ${outline}
     });
     return result;
   }
+
   // 构建最终结果
   private async buildFinalResult(
     metadata: RepositoryMetadata,

@@ -51,7 +51,7 @@ export class PromptBuilder {
 2. **文档清单**：规划所需的文档类型和清单，如架构设计文档、业务流程文档、接口说明文档、操作手册等，为每种文档定义明确目标。
 3. **内容大纲**：为每种文档提供详细的大纲结构，列出推荐包含的章节、主题和具体内容（例如引言、概述、技术详细、图表说明等）。
 4. **文档编写计划**：为文档编写定义优先级和时间计划，包括编写步骤、人员分工指导（如作者角色）以及推荐的工具或格式（如 markdown、UML 等）。
-5. **质量标准建议**：提供文档编写的最佳实践和质量标准建议，确保文档清晰、连贯、专业且易于维护。
+5. **质量标准建议**：提供文档编写的最佳实践和质量标准建议，确保文档清晰、连贯、专业且易于维护。 
  
 输入：用户提供的项目描述、代码片段或目标。
 输出：完整的文档编写计划，包括所需文档清单、每种文档的内容大纲、编写步骤及建议。
@@ -63,8 +63,17 @@ export class PromptBuilder {
 1. **分析文档编写计划，拆解分工，组织任务**：
    - 根据文档编写计划，提取出需要编写的文档列表以及对应的内容大纲
    - 根据提取出的需要编写的文档列表，组织成一个数组，用json格式输出，格式如下：
-   \`\`\`
-  {
+   
+  {json}
+   
+
+输入：完整的文档编写计划  
+输出：JSON格式的文档编写任务数组
+**重要**： 不要输出除了任务数组之外的任何内容
+**重要**： 使用英文思考，使用中文输出
+`;
+
+  static readonly SYSTEM_PROMPT_SCHEDULER_JSON = `  {
     document_tasks: [
       {
         title: '架构设计文档 (Architecture Design Document)',
@@ -73,14 +82,7 @@ export class PromptBuilder {
         targetReader: '目标读者，比如：架构师、核心开发人员、新成员',
       },
     ],
-  }
-   \`\`\`
-
-输入：完整的文档编写计划  
-输出：JSON格式的文档编写任务数组
-**重要**： 不要输出除了任务数组之外的任何内容
-**重要**： 使用英文思考，使用中文输出
-`;
+  }`;
 
   static readonly SYSTEM_PROMPT_WRITER = `你是一位资深技术文档撰写专家，擅长根据详细的大纲和文档目标，产出结构清晰、专业严谨的技术文档内容。你熟悉架构文档、接口文档、业务说明、操作手册等各类文体，并擅长结合代码、系统设计和业务流程撰写精准内容。
 
@@ -202,8 +204,8 @@ The structure MUST be as follows:
     <current_plan>
         <!-- The agent's step-by-step plan. Mark completed steps. -->
         <!-- Example:
-         1. [DONE] Identify all files using the deprecated 'UserAPI'.
-         2. [IN PROGRESS] Refactor \`src/components/UserProfile.tsx\` to use the new 'ProfileAPI'.
+         1. [DONE] Identify all files using the deprecated 'UserAPI'.        
+          2. [IN PROGRESS] Refactor \`src/components/UserProfile.tsx\` to use the new 'ProfileAPI'.
          3. [TODO] Refactor the remaining files.
          4. [TODO] Update tests to reflect the API change.
         -->
