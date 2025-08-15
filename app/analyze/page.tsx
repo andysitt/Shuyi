@@ -196,8 +196,25 @@ export default function AnalysisProgressPage() {
               if (progressInterval.current) {
                 clearInterval(progressInterval.current);
               }
-              // 导航到结果页面
-              router.push(`/analysis/${data.progress.id}`);
+              // 分析完成后，通过 repositoryUrl 查询最终的分析结果ID
+              try {
+                const res = await fetch(
+                  `/api/projects?repositoryUrl=${encodeURIComponent(
+                    repositoryUrl,
+                  )}`,
+                );
+                const result = await res.json();
+                if (result.success && result.project) {
+                  router.push(`/analysis/${result.project.id}`);
+                } else {
+                  throw new Error(result.error || '找不到分析结果');
+                }
+              } catch (err) {
+                setError(
+                  err instanceof Error ? err.message : '获取分析结果失败',
+                );
+                setIsAnalyzing(false);
+              }
             } else if (data.progress.status === 'failed') {
               if (progressInterval.current) {
                 clearInterval(progressInterval.current);
@@ -211,7 +228,7 @@ export default function AnalysisProgressPage() {
         }
       }, 1000); // 每秒轮询一次
     },
-    [router],
+    [router, repositoryUrl],
   );
 
   const cancelAnalysis = useCallback(async () => {

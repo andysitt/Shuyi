@@ -92,7 +92,7 @@ export class Agent {
       targetDir: repositoryPath,
       debugMode: false,
       cwd: repositoryPath,
-      model: 'deepseek-chat',
+      model: 'deepseek-reasoner',
     };
     this.repositoryPath = repositoryPath;
     this.geminiConfig = new Config(params);
@@ -121,13 +121,13 @@ export class Agent {
     rolePrompt,
     history = [],
     withEnv = true,
-    jsonoutput = false,
+    jsonOutput = false,
   }: {
     actionPrompt: string;
     rolePrompt: string;
     history?: ChatMessage[];
     withEnv?: boolean;
-    jsonoutput?: boolean;
+    jsonOutput?: boolean;
   }): Promise<AgentResult> {
     const pendingSend = new AbortController();
     const abortSignal = pendingSend.signal;
@@ -191,12 +191,13 @@ export class Agent {
             ];
           }
           const params = {
+            temperature: 0,
             model: this.config.model,
             tools: tools.length > 0 ? tools : undefined,
             messages: this
               .messages as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
           };
-          if (jsonoutput) {
+          if (jsonOutput) {
             (params as any).response_format = {
               type: 'json_object',
             };
@@ -223,7 +224,7 @@ export class Agent {
 
           // 如果没有工具调用，返回结果
           if (!message.tool_calls || message.tool_calls.length === 0) {
-            if (jsonoutput) {
+            if (jsonOutput) {
               // 结构化输出时无需判断
               break;
             }
@@ -335,11 +336,12 @@ export class Agent {
       if (!this.openai) {
         throw new Error('OpenAI client not initialized');
       }
-
+      delete (message as any).reasoning_content;
       const response = await this.openai.chat.completions.create({
         model: this.config.model,
         messages: [message, { role: 'user', content: CHECK_PROMPT }],
         response_format: { type: 'json_object' },
+        temperature: 0,
       });
 
       const result = JSON.parse(response.choices[0]?.message?.content || '{}');

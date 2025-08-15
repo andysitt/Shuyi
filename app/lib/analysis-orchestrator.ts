@@ -1,14 +1,10 @@
-import { WriteFileTool, WriteFileToolParams } from '@google/gemini-cli-core';
-import { LLMClient, createLLMClient } from './llm-client';
 import { SessionManager } from './llm-tools/session-manager';
-import { cacheManager } from './cache-manager';
 import {
   AnalysisResult,
   RepositoryMetadata,
   RepositoryStructure,
   DependencyInfo,
   CodeQualityMetrics,
-  LLMInsights,
 } from '@/app/types';
 import { Agent, AgentResult } from './agent';
 import { PromptBuilder } from './llm-tools/prompt-builder';
@@ -227,7 +223,7 @@ ${outline}
       actionPrompt,
       rolePrompt: PromptBuilder.SYSTEM_PROMPT_SCHEDULER,
       withEnv: false,
-      jsonoutput: true,
+      jsonOutput: true,
     });
     return result;
   }
