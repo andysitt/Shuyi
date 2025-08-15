@@ -225,6 +225,9 @@ export class Agent {
             [];
 
           for await (const chunk of stream) {
+            if (chunk.usage) {
+              currentTokens = chunk.usage.total_tokens;
+            }
             const delta = chunk.choices[0]?.delta;
             if (!delta) continue;
 
@@ -266,10 +269,6 @@ export class Agent {
               toolCallsResult.length > 0 ? toolCallsResult : undefined,
             refusal: null,
           };
-
-          // Streaming doesn't return usage info in each chunk, so we can't update currentTokens here.
-          // The compression based on token count in the loop will be affected.
-          currentTokens = 0; // Reset or disable token counting for streaming
           console.log(
             '------------assistant message:',
             JSON.stringify(message),
