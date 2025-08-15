@@ -26,7 +26,7 @@ export interface IAnalysisResult {
 
 // AnalysisProgress接口 (Redis-based)
 export interface IAnalysisProgress {
-  id: string; // Analysis ID
+  id: string; // Analysis ID (Base64 encoded URL)
   repositoryUrl: string;
   status: 'pending' | 'analyzing' | 'completed' | 'failed';
   progress: number;
@@ -162,17 +162,12 @@ export class DatabaseAccess {
 
   // --- Analysis Progress Methods (Redis) ---
 
-  private static getProgressKey(id: string): string {
-    return `progress:${id}`;
-  }
-
-  private static getUrlToIdKey(url: string): string {
-    const encodedUrl = Buffer.from(url).toString('base64');
-    return `url-to-id:${encodedUrl}`;
+  private static getProgressKey(encodedUrl: string): string {
+    return `progress:${encodedUrl}`;
   }
 
   static async createAnalysisProgress(progress: {
-    id: string;
+    id: string; // Base64 encoded URL
     repositoryUrl: string;
     status?: 'pending' | 'analyzing' | 'completed' | 'failed';
     progress?: number;
@@ -191,19 +186,17 @@ export class DatabaseAccess {
       updatedAt: now,
     };
 
-    const progressKey = this.getProgressKey(progress.id);
-    const urlToIdKey = this.getUrlToIdKey(progress.repositoryUrl);
-
-    const multi = redisClient.multi();
-    multi.set(progressKey, JSON.stringify(newProgress), { EX: ANALYSIS_PROGRESS_TTL });
-    multi.set(urlToIdKey, progress.id, { EX: ANALYSIS_PROGRESS_TTL });
-    await multi.exec();
+    await redisClient.set(
+      this.getProgressKey(progress.id),
+      JSON.stringify(newProgress),
+      { EX: ANALYSIS_PROGRESS_TTL }
+    );
 
     return newProgress;
   }
 
   static async getAnalysisProgressById(
-    id: string
+    id: string // Base64 encoded URL
   ): Promise<IAnalysisProgress | null> {
     const key = this.getProgressKey(id);
     const data = await redisClient.get(key);
@@ -212,36 +205,17 @@ export class DatabaseAccess {
       return null;
     }
 
-    const progress = JSON.parse(data) as IAnalysisProgress;
+    // Refresh the TTL on read
+    await redisClient.expire(key, ANALYSIS_PROGRESS_TTL);
 
-    // Refresh the TTL on both keys to keep them in sync
-    const urlToIdKey = this.getUrlToIdKey(progress.repositoryUrl);
-    const multi = redisClient.multi();
-    multi.expire(key, ANALYSIS_PROGRESS_TTL);
-    multi.expire(urlToIdKey, ANALYSIS_PROGRESS_TTL);
-    await multi.exec();
-
-    return progress;
-  }
-
-  static async getAnalysisProgressByUrl(
-    url: string
-  ): Promise<IAnalysisProgress | null> {
-    const urlToIdKey = this.getUrlToIdKey(url);
-    const analysisId = await redisClient.get(urlToIdKey);
-
-    if (!analysisId) {
-      return null;
-    }
-    return this.getAnalysisProgressById(analysisId);
+    return JSON.parse(data) as IAnalysisProgress;
   }
 
   static async updateAnalysisProgress(
-    id: string,
+    id: string, // Base64 encoded URL
     updates: Partial<Omit<IAnalysisProgress, 'id' | 'createdAt'>>
   ): Promise<IAnalysisProgress | null> {
     const key = this.getProgressKey(id);
-    // Note: getAnalysisProgressById also refreshes TTL, which is fine for an update.
     const existing = await this.getAnalysisProgressById(id);
 
     if (!existing) {
@@ -262,18 +236,7 @@ export class DatabaseAccess {
   }
 
   static async deleteAnalysisProgress(id: string): Promise<void> {
-    const progressKey = this.getProgressKey(id);
-    const rawData = await redisClient.get(progressKey);
-
-    const multi = redisClient.multi();
-    multi.del(progressKey);
-
-    if (rawData) {
-      const progress = JSON.parse(rawData) as IAnalysisProgress;
-      const urlToIdKey = this.getUrlToIdKey(progress.repositoryUrl);
-      multi.del(urlToIdKey);
-    }
-    
-    await multi.exec();
+    // This ID is the Base64 encoded URL
+    await redisClient.del(this.getProgressKey(id));
   }
 }

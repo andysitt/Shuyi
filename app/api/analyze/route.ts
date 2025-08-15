@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { v4 as uuidv4 } from 'uuid';
+
 import { GitHubClient } from '@/app/lib/github-client';
 import { AnalysisOrchestrator } from '@/app/lib/analysis-orchestrator';
 import { cacheManager, tempManager } from '@/app/lib/cache-manager';
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const analysisId = uuidv4();
+    const analysisId = Buffer.from(repositoryUrl).toString('base64');
 
     // 创建分析进度记录
     await DatabaseAccess.createAnalysisProgress({

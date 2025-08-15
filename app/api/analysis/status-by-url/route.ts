@@ -12,7 +12,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const progress = await DatabaseAccess.getAnalysisProgressByUrl(repositoryUrl);
+    const analysisId = Buffer.from(repositoryUrl).toString('base64');
+    const progress = await DatabaseAccess.getAnalysisProgressById(analysisId);
 
     if (!progress) {
       return NextResponse.json(
