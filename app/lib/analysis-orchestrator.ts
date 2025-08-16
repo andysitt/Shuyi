@@ -14,10 +14,6 @@ import {
   analyzeDependencies,
   analyzeCodeQuality,
 } from './analysis-tools';
-import { ChatOpenAI } from '@langchain/openai';
-import { ChatPromptTemplate } from '@langchain/core/prompts';
-import { StringOutputParser } from '@langchain/core/output_parsers';
-import { JsonOutputParser } from '@langchain/core/output_parsers';
 
 // 分析配置
 export interface AnalysisConfig {
@@ -114,47 +110,40 @@ export class AnalysisOrchestrator {
     onProgress?: (progress: AnalysisProgress) => void,
   ): Promise<boolean> {
     try {
-      const llm = new ChatOpenAI({
-        apiKey: this.config.llmConfig.apiKey,
-        modelName: this.config.llmConfig.model,
-        temperature: 0,
-        configuration: {
-          baseURL: this.config.llmConfig.baseURL,
-        },
+      // 1. 创建计划 (使用Agent)
+      onProgress?.({ stage: 'AI智能分析-制定分析计划', progress: 60 });
+      const agent = new Agent(this.config.llmConfig, this.basePath);
+      const plannerResult = await agent.execute({
+        actionPrompt: `请阅读当前代码库，编制出相应的文档编写计划。在此过程中你可以使用工具来进行查询项目结构、阅读代码等必要的操作。最后请输出一份Markdown格式的文档编写计划。`,
+        rolePrompt: PromptBuilder.SYSTEM_PROMPT_PLANNER,
+        withEnv: true, // withEnv is important to give context to the agent
       });
 
-      // 1. 创建计划链
-      onProgress?.({ stage: 'AI智能分析-制定分析计划', progress: 60 });
-      const plannerPrompt = ChatPromptTemplate.fromMessages([
-        ['system', PromptBuilder.SYSTEM_PROMPT_PLANNER],
-        ['human', '{input}'],
-      ]);
-      const plannerChain = plannerPrompt
-        .pipe(llm)
-        .pipe(new StringOutputParser());
-      const plan = await plannerChain.invoke({
-        input: `请阅读当前代码库，编制出相应的文档编写计划。在此过程中你可以使用工具来进行查询项目结构、阅读代码等必要的操作。最后请输出一份Markdown格式的文档编写计划。`,
-      });
+      if (!plannerResult.success) {
+        throw new Error(
+          `Failed to create analysis plan: ${plannerResult.error}`,
+        );
+      }
+      const plan = plannerResult.content;
 
       // 2. 创建任务调度链
       onProgress?.({ stage: 'AI智能分析-分解分析任务', progress: 70 });
       console.log('------plan', plan);
-      const schedulerPrompt = ChatPromptTemplate.fromMessages([
-        ['system', PromptBuilder.SYSTEM_PROMPT_SCHEDULER],
-        [
-          'human',
-          `请根据以下文档编写计划来生成一份文档编写任务列表，以下是具体的计划
+      const schedulerResult = await agent.execute({
+        actionPrompt: `请根据以下文档编写计划来生成一份文档编写任务列表，以下是具体的计划
 ------------------------------
 {plan}`,
-        ],
-      ]);
-      const schedulerChain = schedulerPrompt
-        .pipe(llm)
-        .pipe(new JsonOutputParser());
-      const tasksResult = await schedulerChain.invoke({
-        plan,
-        json: PromptBuilder.SYSTEM_PROMPT_SCHEDULER_JSON,
+        actionPromptParams: { plan },
+        rolePrompt: PromptBuilder.SYSTEM_PROMPT_SCHEDULER,
+        rolePromptParams: { json: PromptBuilder.SYSTEM_PROMPT_SCHEDULER_JSON },
+        jsonOutput: true, // Ensure JSON output
       });
+
+      if (!schedulerResult.success) {
+        throw new Error(`Failed to create task list: ${schedulerResult.error}`);
+      }
+
+      const tasksResult = JSON.parse(schedulerResult.content);
       console.log('-----tasksResult', tasksResult);
       const taskList = (tasksResult as any).document_tasks;
 
@@ -224,22 +213,24 @@ export class AnalysisOrchestrator {
   }) {
     const actionPrompt = `结合当前仓库中的代码，根据以下要求来编写一篇文档
     如若需要，你可以使用工具来阅读当前仓库中的任何文件
-    最终输出不要包含任何文档之外的内容，文档中也不要包含任何外部资源引用和外部链接
+    最终输出不要包含任何文档之外的内容
+    如有必要，可在段落末尾列出当前段落的相关文件格式如下：[文件名称](文件相对路径#L起始行-L截止行)
     ------------------------------
     ## 标题
-    ${task.title}
+    {title}
     ## 写作目标
-    ${task.goal}
+    {goal}
     ## 大纲: 
     \`\`\`
-    ${task.outline}
+    {outline}
     \`\`\`
     ## 目标读者
-    ${task.targetReader}
+    {targetReader}
     `;
     const agent = new Agent(this.config.llmConfig, this.basePath);
     const result = await agent.execute({
       actionPrompt,
+      actionPromptParams: { ...task },
       rolePrompt: PromptBuilder.SYSTEM_PROMPT_WRITER,
       withEnv: true,
     });

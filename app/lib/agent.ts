@@ -5,10 +5,7 @@ import {
   ToolRegistry,
 } from '@google/gemini-cli-core';
 import { ChatOpenAI } from '@langchain/openai';
-import {
-  createOpenAIToolsAgent,
-  AgentExecutor,
-} from 'langchain/agents';
+import { createOpenAIToolsAgent, AgentExecutor } from 'langchain/agents';
 import {
   ChatPromptTemplate,
   MessagesPlaceholder,
@@ -17,6 +14,7 @@ import {
   AIMessage,
   BaseMessage,
   HumanMessage,
+  ToolMessage,
 } from '@langchain/core/messages';
 import { wrapToolsForLangChain } from './langchain-tools';
 
@@ -73,22 +71,34 @@ export class Agent {
     history = [],
     withEnv = true,
     jsonOutput = false,
+    actionPromptParams = {},
+    rolePromptParams = {},
   }: {
     actionPrompt: string;
     rolePrompt: string;
+    actionPromptParams?: Record<string, string>;
+    rolePromptParams?: Record<string, string>;
     history?: ChatMessage[];
     withEnv?: boolean;
     jsonOutput?: boolean;
   }): Promise<AgentResult> {
-    if (this.config.provider !== 'openai' && this.config.provider !== 'custom') {
+    if (
+      this.config.provider !== 'openai' &&
+      this.config.provider !== 'custom'
+    ) {
       throw new Error('目前只支持 OpenAI 或自定义的提供商');
     }
 
     await this.geminiConfig.initialize();
     const toolRegistry: ToolRegistry =
       await this.geminiConfig.getToolRegistry();
-    
+
     const tools = wrapToolsForLangChain(toolRegistry);
+
+    const modelKwargs: Record<string, any> = {};
+    if (jsonOutput) {
+      modelKwargs.response_format = { type: 'json_object' };
+    }
 
     const llm = new ChatOpenAI({
       apiKey: this.config.apiKey,
@@ -97,6 +107,7 @@ export class Agent {
       configuration: {
         baseURL: this.config.baseURL,
       },
+      modelKwargs,
     });
 
     const envPrompt = withEnv ? await this.getEnv() : '';
@@ -109,7 +120,7 @@ export class Agent {
     const prompt = ChatPromptTemplate.fromMessages([
       ['system', systemPromptContent],
       new MessagesPlaceholder('chat_history'),
-      ['human', '{input}'],
+      ['human', actionPrompt],
       new MessagesPlaceholder('agent_scratchpad'),
     ]);
 
@@ -123,22 +134,34 @@ export class Agent {
 
     // 将我们的历史消息格式转换为LangChain的格式
     const chatHistory = history.map((msg) => {
-      if (msg.role === 'user') {
-        return new HumanMessage(msg.content);
+      switch (msg.role) {
+        case 'user':
+          return new HumanMessage(msg.content);
+        case 'assistant':
+          return new AIMessage({
+            content: msg.content,
+            tool_calls: msg.tool_calls,
+          });
+        case 'tool':
+          return new ToolMessage({
+            content: msg.content,
+            tool_call_id: msg.tool_call_id!,
+          });
+        default:
+          // 对于其他未处理的角色，可以打印警告或返回一个默认值
+          console.warn(`Unhandled message role: ${msg.role}`);
+          // 暂时返回HumanMessage以避免执行中断，但长远来看应处理所有情况
+          return new HumanMessage(msg.content);
       }
-      if (msg.role === 'assistant') {
-        return new AIMessage(msg.content);
-      }
-      // 其他角色可以根据需要进行转换
-      return new HumanMessage(msg.content); 
     });
 
     try {
       const result = await agentExecutor.invoke({
-        input: actionPrompt,
+        ...actionPromptParams,
+        ...rolePromptParams,
         chat_history: chatHistory,
       });
-
+      console.log('--------中间步骤:', result.intermediateSteps);
       // 将LangChain的输出格式转换回我们的AgentResult格式
       const finalHistory: ChatMessage[] = [
         ...history,

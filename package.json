@@ -42,6 +42,8 @@
     "eslint": "^8.0.0",
     "eslint-config-next": "^14.0.0",
     "fs-extra": "^11.1.0",
+    "json-refs": "^3.0.15",
+    "json-schema-to-zod": "^2.6.1",
     "langchain": "^0.3.30",
     "lucide-react": "^0.294.0",
     "mermaid": "^11.9.0",
@@ -50,6 +52,7 @@
     "path-browserify": "^1.0.1",
     "pg": "^8.16.3",
     "postcss": "^8.4.0",
+    "prettier": "^3.6.2",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
     "react-markdown": "^10.1.0",
@@ -63,7 +66,8 @@
     "tailwind-merge": "^2.0.0",
     "tailwindcss": "^3.3.0",
     "typescript": "^5.0.0",
-    "uuid": "^9.0.0"
+    "uuid": "^9.0.0",
+    "zod": "^4.0.17"
   },
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.16"

@@ -1,17 +1,23 @@
-
 import { ToolRegistry } from '@google/gemini-cli-core';
-import { DynamicTool } from '@langchain/core/tools';
+import { DynamicStructuredTool } from '@langchain/core/tools';
+import { z } from 'zod';
+import * as zod from 'zod';
+import { resolveRefs } from 'json-refs';
+import { format } from 'prettier';
+import { schemaToZod } from './schema-to-zod';
 
 /**
- * Wraps tools from a ToolRegistry into LangChain DynamicTool objects.
+ * Wraps tools from a ToolRegistry into LangChain StructuredTool objects.
  * This allows existing tools from @google/gemini-cli-core to be used
- * within LangChain agents and chains.
+ * within LangChain agents and chains, with proper argument schema validation.
  *
  * @param toolRegistry The ToolRegistry instance containing the tools.
- * @returns An array of DynamicTool instances.
+ * @returns An array of StructuredTool instances.
  */
-export function wrapToolsForLangChain(toolRegistry: ToolRegistry): DynamicTool[] {
-  const tools: DynamicTool[] = [];
+export function wrapToolsForLangChain(
+  toolRegistry: ToolRegistry,
+): DynamicStructuredTool[] {
+  const tools: DynamicStructuredTool[] = [];
 
   const toolDeclarations = toolRegistry.getFunctionDeclarations();
 
@@ -20,7 +26,7 @@ export function wrapToolsForLangChain(toolRegistry: ToolRegistry): DynamicTool[]
       continue;
     }
     const toolName = declaration.name;
-    
+
     // Skip tools that are known to cause issues or are not needed.
     if (toolName === 'read_many_files') {
       continue;
@@ -28,34 +34,35 @@ export function wrapToolsForLangChain(toolRegistry: ToolRegistry): DynamicTool[]
 
     const originalTool = toolRegistry.getTool(toolName);
 
-    if (originalTool) {
-      const langChainTool = new DynamicTool({
+    if (originalTool && declaration.parameters) {
+      const zodSchema = schemaToZod(declaration.parameters);
+
+      const langChainTool = new DynamicStructuredTool({
         name: toolName,
         description: declaration.description || 'No description available.',
-        func: async (input: string | object) => { // Add type for input
+        schema: zodSchema,
+        func: async (input: zod.infer<typeof zodSchema>) => {
           try {
-            let params = input;
-            if (typeof input === 'string') {
-              try {
-                params = JSON.parse(input);
-              } catch (e) {
-                console.warn(`Input for tool ${toolName} is a non-JSON string:`, input);
-              }
-            }
-            
-            // The original tool.execute expects a signal.
+            // The input is now a validated object matching the schema.
             const controller = new AbortController();
-            const result = await originalTool.execute(params, controller.signal);
-            
-            return result.llmContent || ''; // Ensure we always return a string
+            const result = await originalTool.execute(input, controller.signal);
+
+            // Ensure the result is a string, as expected by LangChain.
+            if (result.llmContent === null || result.llmContent === undefined) {
+              return '';
+            }
+            if (typeof result.llmContent === 'string') {
+              return result.llmContent;
+            }
+            return JSON.stringify(result.llmContent, null, 2);
           } catch (error: any) {
             return `Error executing tool ${toolName}: ${error.message}`;
           }
         },
       });
+      console.log('-------langChainTool', langChainTool);
       tools.push(langChainTool);
     }
   }
-
   return tools;
 }
