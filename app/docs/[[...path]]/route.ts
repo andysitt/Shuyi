@@ -19,8 +19,9 @@ export async function GET(request: NextRequest, { params }: { params: { path?: s
     // 获取项目路径（除最后一个元素外的所有元素）
     const projectPath = params.path.slice(0, -1).join('/');
 
+    console.log('======', projectPath, docName);
     // 获取文档内容
-    const content = await DocsManager.getDoc(projectPath, docName);
+    const content = await DocsManager.getDoc('github.com/' + projectPath, docName);
 
     if (content === null) {
       return new Response('文档未找到', { status: 404 });

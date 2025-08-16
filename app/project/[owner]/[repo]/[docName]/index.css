@@ -1,0 +1,52 @@
+/* General layout for the viewer */
+.markdown-viewer {
+  display: flex;
+  height: 100%;
+  /* height: calc(100vh - 60px); Adjust height assuming a 60px navbar, if any. Use 100% if nested. */
+  background-color: #fff;
+}
+
+/* Sidebar styles */
+.sidebar {
+  width: 280px;
+  flex-shrink: 0;
+  background-color: #f8f9fa;
+  border-right: 1px solid #dee2e6;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.sidebar ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.sidebar li {
+  padding: 10px 16px;
+  cursor: pointer;
+  border-radius: 6px;
+  margin-bottom: 5px;
+  font-size: 14px;
+  color: #495057;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.sidebar li:hover {
+  background-color: #e9ecef;
+  color: #000;
+}
+
+.sidebar li.active {
+  background-color: #6c757d;
+  color: white;
+  font-weight: 500;
+}
+
+/* Main content area styles */
+.main-content {
+  flex-grow: 1;
+  /* Reduced padding as .prose adds its own */
+  padding: 24px; 
+  overflow-y: auto;
+}

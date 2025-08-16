@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "preflight": " npm run lint && npm run build",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
@@ -42,6 +43,7 @@
     "eslint": "^8.0.0",
     "eslint-config-next": "^14.0.0",
     "fs-extra": "^11.1.0",
+    "highlight.js": "^11.11.1",
     "json-refs": "^3.0.15",
     "json-schema-to-zod": "^2.6.1",
     "langchain": "^0.3.30",
@@ -60,6 +62,7 @@
     "redis": "^4.6.0",
     "rehype-highlight": "^7.0.2",
     "rehype-mermaid": "^3.0.0",
+    "rehype-slug": "^6.0.0",
     "remark-gfm": "^4.0.1",
     "remark-highlight.js": "^7.0.1",
     "simple-git": "^3.20.0",
