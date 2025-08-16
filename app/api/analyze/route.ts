@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { GitHubClient } from '@/app/lib/github-client';
-import { AnalysisOrchestrator } from '@/app/lib/analysis-orchestrator';
-import { cacheManager, tempManager } from '@/app/lib/cache-manager';
+import { AnalysisOrchestrator } from '@/app/service/analysis-orchestrator';
+import { cacheManager } from '@/app/lib/cache-manager';
+import { tempManager } from '@/app/lib/temp-manager';
 import { DatabaseAccess } from '@/app/lib/db-access';
 import { AnalysisRequest, AnalysisResult } from '@/app/types';
+import { progressManager } from '@/app/service/progress-manager';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,31 +14,17 @@ export async function POST(request: NextRequest) {
     const { repositoryUrl, analysisType = 'full' } = body;
 
     if (!repositoryUrl) {
-      return NextResponse.json(
-        { success: false, error: '仓库URL是必需的' },
-        { status: 400 },
-      );
+      return NextResponse.json({ success: false, error: '仓库URL是必需的' }, { status: 400 });
     }
 
     const analysisId = Buffer.from(repositoryUrl).toString('base64');
 
     // 创建分析进度记录
-    await DatabaseAccess.createAnalysisProgress({
-      id: analysisId,
-      repositoryUrl,
-      status: 'pending',
-      progress: 0,
-      stage: '初始化',
-      details: '正在初始化分析...',
-    });
+    await progressManager.create(repositoryUrl);
 
     // 更新进度
-    const updateProgress = async (
-      progress: number,
-      stage: string,
-      details?: string,
-    ) => {
-      await DatabaseAccess.updateAnalysisProgress(analysisId, {
+    const updateProgress = async (progress: number, stage: string, details?: string) => {
+      await progressManager.update(repositoryUrl, {
         progress,
         stage,
         details,
@@ -52,10 +40,10 @@ export async function POST(request: NextRequest) {
 
         // 检查缓存
         const cacheKey = `analysis:${repositoryUrl}:${analysisType}`;
-        const cached = await cacheManager.get(cacheKey);
+        const cached = await cacheManager.get<AnalysisResult>(cacheKey);
         if (cached) {
           await updateProgress(100, '完成', '分析完成');
-          await DatabaseAccess.updateAnalysisProgress(analysisId, {
+          await progressManager.update(repositoryUrl, {
             status: 'completed',
             progress: 100,
             stage: '完成',
@@ -69,32 +57,10 @@ export async function POST(request: NextRequest) {
             owner: metadata.owner,
             repo: metadata.name,
             metadata,
-            structure: cached.structure || {
-              root: {
-                name: metadata.name,
-                type: 'directory' as const,
-                path: '.',
-                size: metadata.size,
-              },
-              totalFiles: 0,
-              totalDirectories: 0,
-              languages: { [metadata.language]: metadata.size },
-              keyFiles: [],
-            },
-            dependencies:
-              cached.dependencies ||
-              Object.entries(metadata.topics || {}).map(([name, version]) => ({
-                name,
-                version: version as string,
-                type: 'production' as const,
-              })),
-            codeQuality: cached.codeQuality || {
-              complexity: { average: 0, max: 0, files: [] },
-              duplication: 0,
-              maintainability: 0,
-              securityIssues: [],
-            },
-            llmInsights: cached.llmInsights || {},
+            structure: cached.structure,
+            dependencies: cached.dependencies,
+            codeQuality: cached.codeQuality,
+            llmInsights: cached.llmInsights,
             status: 'completed' as const,
           };
           await DatabaseAccess.saveAnalysisResult(dbResult);
@@ -109,7 +75,7 @@ export async function POST(request: NextRequest) {
         const validation = await githubClient.validateRepository(repositoryUrl);
 
         if (!validation.isValid) {
-          await DatabaseAccess.updateAnalysisProgress(analysisId, {
+          await progressManager.update(repositoryUrl, {
             status: 'failed',
             details: validation.error,
           });
@@ -120,10 +86,7 @@ export async function POST(request: NextRequest) {
         await updateProgress(15, '获取元数据', '正在获取仓库元数据...');
 
         // 获取仓库元数据
-        const metadata = await githubClient.getRepositoryMetadata(
-          owner!,
-          repo!,
-        );
+        const metadata = await githubClient.getRepositoryMetadata(owner!, repo!);
         await updateProgress(20, '克隆仓库', '正在克隆仓库...');
 
         // 创建临时目录
@@ -136,7 +99,7 @@ export async function POST(request: NextRequest) {
 
           // 配置LLM分析
           if (!process.env.LLM_API_KEY) {
-            await DatabaseAccess.updateAnalysisProgress(analysisId, {
+            await progressManager.update(repositoryUrl, {
               status: 'failed',
               details: 'LLM API密钥未配置，请设置 LLM_API_KEY',
             });
@@ -144,10 +107,7 @@ export async function POST(request: NextRequest) {
           }
 
           const llmConfig = {
-            provider: (process.env.LLM_PROVIDER || 'openai') as
-              | 'openai'
-              | 'anthropic'
-              | 'custom',
+            provider: (process.env.LLM_PROVIDER || 'openai') as 'openai' | 'anthropic' | 'custom',
             apiKey: process.env.LLM_API_KEY,
             model: process.env.LLM_MODEL || 'gpt-4',
             baseURL: process.env.LLM_BASE_URL || undefined,
@@ -159,13 +119,7 @@ export async function POST(request: NextRequest) {
               analysisType: analysisType as any,
               maxFilesToAnalyze: 15,
               includePatterns: ['**/*.{js,ts,py,java,go,rs,php,rb}'],
-              excludePatterns: [
-                'node_modules/**',
-                '.git/**',
-                'dist/**',
-                'build/**',
-                '*.min.*',
-              ],
+              excludePatterns: ['node_modules/**', '.git/**', 'dist/**', 'build/**', '*.min.*'],
             },
             tempDir,
           );
@@ -209,7 +163,7 @@ export async function POST(request: NextRequest) {
           await DatabaseAccess.saveAnalysisResult(dbResult);
 
           await updateProgress(100, '完成', '分析完成');
-          await DatabaseAccess.updateAnalysisProgress(analysisId, {
+          await progressManager.update(repositoryUrl, {
             status: 'completed',
             progress: 100,
             stage: '完成',
@@ -217,7 +171,7 @@ export async function POST(request: NextRequest) {
           });
         } catch (error) {
           console.error('LLM分析错误:', error);
-          await DatabaseAccess.updateAnalysisProgress(analysisId, {
+          await progressManager.update(repositoryUrl, {
             status: 'failed',
             details: error instanceof Error ? error.message : '分析失败',
           });
@@ -237,13 +191,11 @@ export async function POST(request: NextRequest) {
               languages: { [metadata.language]: metadata.size },
               keyFiles: [],
             },
-            dependencies: Object.entries(metadata.topics || {}).map(
-              ([name, version]) => ({
-                name,
-                version: version as string,
-                type: 'production',
-              }),
-            ),
+            dependencies: Object.entries(metadata.topics || {}).map(([name, version]) => ({
+              name,
+              version: version as string,
+              type: 'production',
+            })),
             codeQuality: {
               complexity: { average: 0, max: 0, files: [] },
               duplication: 0,
@@ -274,7 +226,7 @@ export async function POST(request: NextRequest) {
         }
       } catch (error) {
         console.error('分析错误:', error);
-        await DatabaseAccess.updateAnalysisProgress(analysisId, {
+        await progressManager.update(repositoryUrl, {
           status: 'failed',
           details: error instanceof Error ? error.message : '分析失败',
         });

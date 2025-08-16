@@ -1,10 +1,7 @@
 import { NextRequest } from 'next/server';
-import { DocsManager } from '../../lib/docs-manager';
+import { DocsManager } from '../../service/docs-manager';
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { path?: string[] } },
-) {
+export async function GET(request: NextRequest, { params }: { params: { path?: string[] } }) {
   try {
     console.log('------', params);
     // 解析路径参数

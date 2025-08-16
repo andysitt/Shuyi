@@ -3,22 +3,21 @@ import { DatabaseAccess } from '@/app/lib/db-access';
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: { path: string[] } },
 ) {
   try {
-    const { id } = params;
-
-    // 验证ID格式
-    const idNum = parseInt(id);
-    if (isNaN(idNum)) {
-      return NextResponse.json(
-        { success: false, error: '无效的分析ID' },
-        { status: 400 },
-      );
+    const { path } = params;
+    if (!path || path.length === 0) {
+        return NextResponse.json(
+            { success: false, error: 'Repository path is required' },
+            { status: 400 },
+        );
     }
+    const repoPath = path.join('/');
+    const repositoryUrl = `https://github.com/${repoPath}`;
 
-    // 获取分析结果
-    const result = await DatabaseAccess.getAnalysisResultById(idNum);
+    // Get analysis result by repository URL
+    const result = await DatabaseAccess.getAnalysisResult(repositoryUrl);
 
     if (!result) {
       return NextResponse.json(
@@ -29,6 +28,7 @@ export async function GET(
 
     // 转换数据格式
     const analysisData = {
+      id: result.id,
       metadata: result.metadata,
       structure: result.structure,
       dependencies: result.dependencies,

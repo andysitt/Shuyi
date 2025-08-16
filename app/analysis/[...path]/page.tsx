@@ -18,16 +18,17 @@ export default function AnalysisDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const params = useParams();
   const router = useRouter();
-  const { id } = params;
+  const { path } = params as { path: string[] };
 
   const fetchAnalysisData = useCallback(async () => {
-    if (!id) return;
+    if (!path || path.length === 0) return;
+    const repoPath = path.join('/');
     try {
       setLoading(true);
       setError(null);
 
       // 调用API获取分析结果
-      const response = await fetch(`/api/analysis/${id}`);
+      const response = await fetch(`/api/analysis/result/${repoPath}`);
       const data = await response.json();
 
       if (data.success) {
@@ -40,7 +41,7 @@ export default function AnalysisDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [path]);
 
   useEffect(() => {
     fetchAnalysisData();

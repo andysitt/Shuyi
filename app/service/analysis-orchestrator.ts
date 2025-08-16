@@ -1,4 +1,4 @@
-import { SessionManager } from './llm-tools/session-manager';
+import { SessionManager } from '../lib/llm-tools/session-manager';
 import {
   AnalysisResult,
   RepositoryMetadata,
@@ -6,14 +6,10 @@ import {
   DependencyInfo,
   CodeQualityMetrics,
 } from '@/app/types';
-import { Agent } from './agent';
-import { PromptBuilder } from './llm-tools/prompt-builder';
+import { Agent } from '../lib/agent';
+import { PromptBuilder } from '../lib/llm-tools/prompt-builder';
 import { DocsManager } from './docs-manager';
-import {
-  analyzeStructure,
-  analyzeDependencies,
-  analyzeCodeQuality,
-} from './analysis-tools';
+import { analyzeStructure, analyzeDependencies, analyzeCodeQuality } from './analysis-tools';
 
 // 分析配置
 export interface AnalysisConfig {
@@ -50,23 +46,17 @@ export class AnalysisOrchestrator {
   }
 
   // 结构分析方法
-  private async analyzeStructure(
-    repositoryPath: string,
-  ): Promise<RepositoryStructure> {
+  private async analyzeStructure(repositoryPath: string): Promise<RepositoryStructure> {
     return await analyzeStructure(repositoryPath);
   }
 
   // 依赖分析方法
-  private async analyzeDependencies(
-    repositoryPath: string,
-  ): Promise<DependencyInfo[]> {
+  private async analyzeDependencies(repositoryPath: string): Promise<DependencyInfo[]> {
     return await analyzeDependencies(repositoryPath);
   }
 
   // 代码质量分析方法
-  private async analyzeCodeQuality(
-    repositoryPath: string,
-  ): Promise<CodeQualityMetrics> {
+  private async analyzeCodeQuality(repositoryPath: string): Promise<CodeQualityMetrics> {
     return await analyzeCodeQuality(repositoryPath);
   }
 
@@ -77,10 +67,7 @@ export class AnalysisOrchestrator {
     repositoryMetadata: RepositoryMetadata,
     onProgress?: (progress: AnalysisProgress) => void,
   ): Promise<AnalysisResult> {
-    const session = await this.sessionManager.createSession(
-      'full_analysis',
-      repositoryPath,
-    );
+    const session = await this.sessionManager.createSession('full_analysis', repositoryPath);
 
     try {
       onProgress?.({ stage: '分析结构信息', progress: 20 });
@@ -91,13 +78,7 @@ export class AnalysisOrchestrator {
       const codeQuality = await this.analyzeCodeQuality(repositoryPath);
       onProgress?.({ stage: '开始 AI 智能分析', progress: 45 });
       await this.performLLMAnalysis(repositoryUrl, onProgress);
-      const result = this.buildFinalResult(
-        repositoryMetadata,
-        structure,
-        dependencies,
-        codeQuality,
-        '',
-      );
+      const result = this.buildFinalResult(repositoryMetadata, structure, dependencies, codeQuality, '');
       return result;
     } finally {
       this.sessionManager.endSession(session.sessionId);
@@ -120,9 +101,7 @@ export class AnalysisOrchestrator {
       });
 
       if (!plannerResult.success) {
-        throw new Error(
-          `Failed to create analysis plan: ${plannerResult.error}`,
-        );
+        throw new Error(`Failed to create analysis plan: ${plannerResult.error}`);
       }
       const plan = plannerResult.content;
 
@@ -163,11 +142,7 @@ export class AnalysisOrchestrator {
         const writePromises = taskList.map(async (task, index) => {
           try {
             const result = await this.write(task);
-            await DocsManager.saveDoc(
-              repositoryUrlEncoded,
-              task.title.replaceAll(' ', ''),
-              result.content,
-            );
+            await DocsManager.saveDoc(repositoryUrlEncoded, task.title.replaceAll(' ', ''), result.content);
             onProgress?.({
               stage: 'AI智能分析-编写分析文档',
               progress: 80 + Math.floor(((index + 1) / taskList.length) * 20),
@@ -205,12 +180,7 @@ export class AnalysisOrchestrator {
   }
 
   // 执行具体编写任务 - 此方法保持不变，因为它需要一个具备工具使用能力的完整Agent
-  private async write(task: {
-    title: string;
-    goal: string;
-    outline: string;
-    targetReader: string;
-  }) {
+  private async write(task: { title: string; goal: string; outline: string; targetReader: string }) {
     const actionPrompt = `结合当前仓库中的代码，根据以下要求来编写一篇文档
     如若需要，你可以使用工具来阅读当前仓库中的任何文件
     最终输出不要包含任何文档之外的内容
@@ -256,9 +226,6 @@ export class AnalysisOrchestrator {
 }
 
 // 创建分析协调器工厂
-export function createAnalysisOrchestrator(
-  config: AnalysisConfig,
-  repositoryPath: string,
-) {
+export function createAnalysisOrchestrator(config: AnalysisConfig, repositoryPath: string) {
   return new AnalysisOrchestrator(config, repositoryPath);
 }

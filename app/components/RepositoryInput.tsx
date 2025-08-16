@@ -17,12 +17,7 @@ interface RepositoryInputProps {
   defaultUrl?: string;
 }
 
-export function RepositoryInput({
-  onRepositorySubmit,
-  loading,
-  error,
-  defaultUrl,
-}: RepositoryInputProps) {
+export function RepositoryInput({ onRepositorySubmit, loading, error, defaultUrl }: RepositoryInputProps) {
   const [url, setUrl] = useState(defaultUrl);
   const [validationError, setValidationError] = useState('');
 
@@ -77,12 +72,7 @@ export function RepositoryInput({
             </Alert>
           )}
 
-          <Button
-            type="submit"
-            disabled={loading || !(url || '').trim()}
-            className="w-full"
-            size="lg"
-          >
+          <Button type="submit" disabled={loading || !(url || '').trim()} className="w-full" size="lg">
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -98,9 +88,7 @@ export function RepositoryInput({
         </form>
 
         <div className="text-center space-y-2">
-          <p className="text-sm text-muted-foreground">
-            支持公共GitHub仓库，例如：
-          </p>
+          <p className="text-sm text-muted-foreground">支持公共GitHub仓库，例如：</p>
           <div className="flex flex-wrap gap-2 justify-center">
             <Badge variant="outline" className="text-xs">
               https://github.com/facebook/react

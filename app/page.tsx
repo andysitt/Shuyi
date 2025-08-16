@@ -5,13 +5,9 @@ import { useRouter } from 'next/navigation';
 import { Search, Plus, Star, Code, Calendar } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/app/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/components/ui/card';
+import { RepoSearcher } from './components/RepoSearcher';
+import { AnalysisProjectCard } from '@/app/components/AnalysisProjectCard';
 
 interface Project {
   id: string;
@@ -21,6 +17,7 @@ interface Project {
   stars: number;
   language: string;
   createdAt: Date;
+  isTemporary?: boolean;
 }
 
 export default function Home() {
@@ -28,6 +25,7 @@ export default function Home() {
   const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -67,12 +65,61 @@ export default function Home() {
     }
   };
 
-  const handleNewAnalysis = () => {
-    router.push('/analyze');
+  const handleViewDetails = (repositoryUrl: string) => {
+    const repoUrl = new URL(repositoryUrl);
+    router.push(`/analysis/${repoUrl.pathname}`);
   };
 
-  const handleViewDetails = (id: string) => {
-    router.push(`/analysis/${id}`);
+  const handleAnalysisSubmit = async (url: string) => {
+    setLoading(true);
+    setError(null);
+    setSearchTerm(url); // show the url in search input
+
+    try {
+      // 1. Validate URL
+      const validationResponse = await fetch('/api/github/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+      const validationResult = await validationResponse.json();
+
+      if (!validationResult.isValid) {
+        setError(validationResult.error);
+        setFilteredProjects(projects); // Show all projects
+        return;
+      }
+
+      // 2. Check if project is already analyzed
+      const existingProject = projects.find((p) => p.repositoryUrl === url);
+      if (existingProject) {
+        setFilteredProjects([existingProject]);
+        return;
+      }
+
+      // 3. Fetch metadata for unanalyzed project
+      const { owner, repo } = validationResult;
+      const metadataResponse = await fetch(`/api/github/metadata?owner=${owner}&repo=${repo}`);
+      const metadata = await metadataResponse.json();
+
+      // Create a temporary project object
+      const tempProject: Project = {
+        id: 'temp-' + Date.now(), // Temporary ID
+        repositoryUrl: url,
+        name: metadata.name,
+        description: metadata.description,
+        stars: metadata.stars,
+        language: metadata.language,
+        createdAt: new Date(metadata.createdAt),
+        isTemporary: true, // Flag to render AnalysisProjectCard
+      };
+
+      setFilteredProjects([tempProject]);
+    } catch (error) {
+      setError('An unexpected error occurred.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -80,33 +127,20 @@ export default function Home() {
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Header */}
         <div className="text-center mb-12 pt-8">
-          <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4 bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
+          <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4 bg-gradient-to-r from-primary to-purple-600 bg-clip-text ">
             GitHub仓库分析器
           </h1>
-          <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto">
-            浏览已分析的GitHub仓库，获取深度结构洞察、代码质量评估和架构建议
-          </p>
+          <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto">请输入任意GitHub仓库地址</p>
         </div>
 
         {/* Search and Actions */}
         <div className="flex flex-col md:flex-row gap-4 mb-8">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-            <Input
-              placeholder="搜索项目..."
-              className="pl-10"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+            <RepoSearcher onAnalysisSubmit={handleAnalysisSubmit} />
           </div>
-          <Button
-            onClick={handleNewAnalysis}
-            className="flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            新项目分析
-          </Button>
         </div>
+
+        {error && <div className="text-red-500 text-center mb-4">{error}</div>}
 
         {/* Projects List */}
         {loading ? (
@@ -122,20 +156,18 @@ export default function Home() {
               {searchTerm ? '未找到匹配的项目' : '暂无已分析的项目'}
             </h3>
             <p className="text-muted-foreground">
-              {searchTerm
-                ? '请尝试其他搜索关键词'
-                : '开始分析您的第一个GitHub仓库'}
+              {searchTerm ? '请尝试其他搜索关键词' : '开始分析您的第一个GitHub仓库'}
             </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredProjects.map((project) => (
-              <ProjectCard
-                key={project.id}
-                project={project}
-                onViewDetails={handleViewDetails}
-              />
-            ))}
+            {filteredProjects.map((project) =>
+              project.isTemporary ? (
+                <AnalysisProjectCard key={project.id} githubUrl={project.repositoryUrl} />
+              ) : (
+                <ProjectCard key={project.id} project={project} onViewDetails={handleViewDetails} />
+              ),
+            )}
           </div>
         )}
       </div>
@@ -143,40 +175,28 @@ export default function Home() {
   );
 }
 
-function ProjectCard({
-  project,
-  onViewDetails,
-}: {
-  project: Project;
-  onViewDetails: (id: string) => void;
-}) {
+function ProjectCard({ project, onViewDetails }: { project: Project; onViewDetails: (repositoryUrl: string) => void }) {
   return (
     <Card
       className="hover:shadow-lg transition-shadow duration-200 cursor-pointer"
-      onClick={() => onViewDetails(project.id)}
+      onClick={() => onViewDetails(project.repositoryUrl)}
     >
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <span className="truncate">{project.name}</span>
           <Star className="w-4 h-4 text-yellow-500 flex-shrink-0 ml-2" />
         </CardTitle>
-        <CardDescription className="line-clamp-2">
-          {project.description || '暂无描述'}
-        </CardDescription>
+        <CardDescription className="line-clamp-2">{project.description || '暂无描述'}</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <Code className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">
-              {project.language}
-            </span>
+            <span className="text-sm text-muted-foreground">{project.language}</span>
           </div>
           <div className="flex items-center gap-2">
             <Star className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">
-              {project.stars} 星标
-            </span>
+            <span className="text-sm text-muted-foreground">{project.stars} 星标</span>
           </div>
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4 text-muted-foreground" />

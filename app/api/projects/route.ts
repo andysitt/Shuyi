@@ -1,20 +1,17 @@
-import { NextResponse } from "next/server";
-import { DatabaseAccess } from "@/app/lib/db-access";
+import { NextRequest, NextResponse } from 'next/server';
+import { DatabaseAccess } from '@/app/lib/db-access';
+export const dynamic = 'force-dynamic'; // 强制动态执行，不走静态优化
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const repositoryUrl = searchParams.get("repositoryUrl");
+    const repositoryUrl = request.nextUrl.searchParams.get('repositoryUrl');
 
     if (repositoryUrl) {
       // Get a single analysis result by repositoryUrl
       const result = await DatabaseAccess.getAnalysisResult(repositoryUrl);
 
       if (!result) {
-        return NextResponse.json(
-          { success: false, error: "项目未找到" },
-          { status: 404 }
-        );
+        return NextResponse.json({ success: false, error: '项目未找到' }, { status: 404 });
       }
 
       const project = {
@@ -52,10 +49,7 @@ export async function GET(request: Request) {
       });
     }
   } catch (error) {
-    console.error("获取项目列表失败:", error);
-    return NextResponse.json(
-      { success: false, error: "获取项目列表失败" },
-      { status: 500 }
-    );
+    console.error('获取项目列表失败:', error);
+    return NextResponse.json({ success: false, error: '获取项目列表失败' }, { status: 500 });
   }
 }

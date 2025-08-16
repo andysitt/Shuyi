@@ -1,6 +1,5 @@
 import { connectToDatabase, query, closeDatabase } from "./db";
-import { DatabaseAccess } from "./db-access";
-import { v4 as uuidv4 } from 'uuid';
+import { progressManager } from '@/app/service/progress-manager';
 import redisClient from "./redis-client";
 
 async function testDatabase() {
@@ -47,33 +46,34 @@ async function testDatabase() {
     console.log("PostgreSQL测试通过！");
 
 
-    // --- Redis Tests (DatabaseAccess) ---
-    console.log("\n--- Testing Redis via DatabaseAccess ---");
-    const testId = uuidv4();
-    const testRepoUrl = `https://github.com/test/test-${testId}`;
+    // --- Redis Tests (progressManager) ---
+    console.log("\n--- Testing Redis via progressManager ---");
+    const testRepoUrl = `https://github.com/test/test-${Date.now()}`;
 
-    console.log(`使用测试ID: ${testId}`);
+    console.log(`使用测试URL: ${testRepoUrl}`);
 
-    const testProgress = await DatabaseAccess.createAnalysisProgress({
-      id: testId,
-      repositoryUrl: testRepoUrl,
-      stage: "测试阶段",
-      progress: 50,
-      status: "analyzing",
-      details: "测试详情",
-    });
+    // Create
+    let testProgress = await progressManager.create(testRepoUrl);
     console.log("创建分析进度成功:", testProgress);
 
-    const retrievedProgress = await DatabaseAccess.getAnalysisProgressById(
-      testId
-    );
+    // Update
+    await progressManager.update(testRepoUrl, {
+        stage: "测试阶段",
+        progress: 50,
+        status: "analyzing",
+        details: "测试详情",
+    });
+
+    // Get
+    let retrievedProgress = await progressManager.get(testRepoUrl);
     console.log("获取分析进度成功:", retrievedProgress);
     if (retrievedProgress?.progress !== 50) {
         throw new Error("获取到的进度值不匹配!");
     }
 
-    const updatedProgress = await DatabaseAccess.updateAnalysisProgress(
-        testId,
+    // Update again
+    const updatedProgress = await progressManager.update(
+        testRepoUrl,
         { progress: 75, stage: "更新阶段" }
     );
     console.log("更新分析进度成功:", updatedProgress);
@@ -81,10 +81,12 @@ async function testDatabase() {
         throw new Error("更新后的进度值不匹配!");
     }
 
-    await DatabaseAccess.deleteAnalysisProgress(testId);
+    // Delete
+    await progressManager.delete(testRepoUrl);
     console.log("删除分析进度成功");
 
-    const deletedProgress = await DatabaseAccess.getAnalysisProgressById(testId);
+    // Get after delete
+    const deletedProgress = await progressManager.get(testRepoUrl);
     if (deletedProgress) {
         throw new Error("进度删除后仍能获取到!");
     }
