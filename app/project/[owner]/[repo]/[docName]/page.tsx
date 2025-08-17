@@ -1,7 +1,6 @@
 'use client';
 
 import MarkdownViewer from '@/app/components/MarkdownViewer';
-import './index.css';
 
 const ProjectDocsPage = ({ params }: { params: { owner: string; repo: string; docName: string } }) => {
   const { owner, repo, docName } = params;

@@ -4,18 +4,17 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { AnalysisResults } from '@/app/components/AnalysisResults';
 import { Button } from '@/app/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/app/components/ui/card';
-import { ArrowLeft, RefreshCw, Share2 } from 'lucide-react';
+import { cn } from '@/app/lib/utils';
+import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
+import { Github, Star, Code, ArrowLeft, RefreshCw, Share2, Clock } from 'lucide-react';
+import { Badge } from '@/app/components/ui/badge';
+import { IAnalysisResult } from '@/app/lib/db-access';
 
 export default function AnalysisDetailPage() {
-  const [analysisData, setAnalysisData] = useState<any>(null);
+  const [analysisData, setAnalysisData] = useState<IAnalysisResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isHeaderExpanded, setIsHeaderExpanded] = useState(false);
   const params = useParams();
   const router = useRouter();
   const { path } = params as { path: string[] };
@@ -27,7 +26,6 @@ export default function AnalysisDetailPage() {
       setLoading(true);
       setError(null);
 
-      // 调用API获取分析结果
       const response = await fetch(`/api/analysis/result/${repoPath}`);
       const data = await response.json();
 
@@ -53,12 +51,8 @@ export default function AnalysisDetailPage() {
 
   const handleReanalyze = async () => {
     if (!analysisData?.repositoryUrl) return;
-
     try {
-      // 重新分析
-      router.push(
-        `/analyze?url=${encodeURIComponent(analysisData.repositoryUrl)}`,
-      );
+      router.push(`/analyze?url=${encodeURIComponent(analysisData.repositoryUrl)}`);
     } catch (err) {
       console.error('重新分析失败:', err);
     }
@@ -67,7 +61,6 @@ export default function AnalysisDetailPage() {
   const handleShare = async () => {
     try {
       await navigator.clipboard.writeText(window.location.href);
-      // 这里可以添加一个提示，告诉用户链接已复制
     } catch (err) {
       console.error('复制链接失败:', err);
     }
@@ -122,45 +115,68 @@ export default function AnalysisDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="border-b">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <Button
-              onClick={handleBack}
-              variant="outline"
-              className="flex items-center gap-2"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              返回主页
-            </Button>
+    <div className="h-screen bg-background">
+      <header
+        className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm"
+        style={{ boxShadow: '0px 6px 6px 0px #ddd' }}
+        onMouseEnter={() => setIsHeaderExpanded(true)}
+        onMouseLeave={() => setIsHeaderExpanded(false)}
+      >
+        <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-4">
+          <div className="flex-grow flex items-center gap-4 overflow-hidden">
+            <h1 className="text-xl font-bold flex items-center gap-2 truncate">
+              <Github className="w-5 h-5 flex-shrink-0" />
+              <a href={analysisData.repositoryUrl} target="_blank" rel="noopener noreferrer" className="truncate">
+                {analysisData.metadata.name}
+              </a>
+            </h1>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Badge variant="secondary" className="flex items-center gap-1">
+                <Star className="w-3 h-3" /> {analysisData.metadata.stars.toLocaleString()}
+              </Badge>
+              <Badge variant="outline" className="flex items-center gap-1">
+                <Code className="w-3 h-3" /> {analysisData.metadata.language}
+              </Badge>
+            </div>
+          </div>
 
-            <div className="flex gap-2">
-              <Button
-                onClick={handleShare}
-                variant="outline"
-                className="flex items-center gap-2"
-              >
-                <Share2 className="w-4 h-4" />
-                分享
-              </Button>
-              <Button
-                onClick={handleReanalyze}
-                className="flex items-center gap-2"
-              >
-                <RefreshCw className="w-4 h-4" />
-                重新分析
-              </Button>
+          <div className="flex flex-shrink-0 gap-2">
+            <Button onClick={handleShare} variant="outline" size="sm" className="flex items-center gap-2">
+              <Share2 className="w-4 h-4" />
+              分享
+            </Button>
+            <Button onClick={handleReanalyze} size="sm" className="flex items-center gap-2">
+              <RefreshCw className="w-4 h-4" />
+              重新分析
+            </Button>
+            <Button onClick={handleBack} variant="outline" size="sm" className="flex items-center gap-2">
+              <ArrowLeft className="w-4 h-4" />
+              返回
+            </Button>
+          </div>
+        </div>
+
+        <div
+          className={cn(
+            'container mx-auto px-4 transition-all duration-300 ease-in-out overflow-hidden bg-background/95 backdrop-blur-sm ',
+            isHeaderExpanded ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0',
+          )}
+        >
+          <div className="pb-3">
+            <p className="text-muted-foreground text-sm">{analysisData.metadata.description}</p>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
+              <Clock className="w-4 h-4" />
+              <span>最后分析于: {new Date(analysisData.updatedAt).toLocaleString('zh-CN')}</span>
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* Analysis Results */}
-      <div className="container mx-auto px-4 py-8">
-        <AnalysisResults data={analysisData} />
-      </div>
+      <main className="pt-16 h-full">
+        <div className="container mx-auto px-4 py-4 h-full">
+          <AnalysisResults data={analysisData} repoPath={path.join('/')} />
+        </div>
+      </main>
     </div>
   );
 }

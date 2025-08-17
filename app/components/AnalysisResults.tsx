@@ -2,10 +2,6 @@
 
 import { useState } from 'react';
 import {
-  Github,
-  Star,
-  GitFork,
-  Code,
   Package,
   Shield,
   FileText,
@@ -13,25 +9,13 @@ import {
   Activity,
   GitBranch,
   AlertCircle,
-  CheckCircle,
   Zap,
   TrendingUp,
   Users,
   Calendar,
 } from 'lucide-react';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/app/components/ui/tabs';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/app/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/components/ui/tabs';
+import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Badge } from '@/app/components/ui/badge';
 import { cn } from '@/app/lib/utils';
 
@@ -46,49 +30,15 @@ interface AnalysisResultsProps {
     llmInsights: any;
     repositoryUrl: string;
   };
+  repoPath: string;
 }
 
-export function AnalysisResults({ data }: AnalysisResultsProps) {
-  const [activeTab, setActiveTab] = useState('overview');
-  const {
-    metadata,
-    structure,
-    dependencies,
-    codeQuality,
-    llmInsights,
-    repositoryUrl,
-  } = data;
+export function AnalysisResults({ data, repoPath }: AnalysisResultsProps) {
+  const [activeTab, setActiveTab] = useState('insights');
+  const { metadata, structure, dependencies, codeQuality } = data;
 
-  const StatCard = ({ icon: Icon, label, value, color = 'primary' }: any) => (
-    <Card className="hover:shadow-lg transition-shadow duration-200">
-      <CardContent className="p-6">
-        <div className="flex items-center space-x-4">
-          <div
-            className={cn(
-              'p-3 rounded-full bg-opacity-10',
-              color === 'primary' && 'bg-primary text-primary',
-            )}
-          >
-            <Icon className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">{label}</p>
-            <p className="text-2xl font-bold text-foreground">{value}</p>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-
-  const LanguageBar = ({
-    languages,
-  }: {
-    languages: Record<string, number>;
-  }) => {
-    const total = Object.values(languages).reduce(
-      (sum, count) => sum + count,
-      0,
-    );
+  const LanguageBar = ({ languages }: { languages: Record<string, number> }) => {
+    const total = Object.values(languages).reduce((sum, count) => sum + count, 0);
     const colors = [
       '#3178c6',
       '#f7df1e',
@@ -123,10 +73,7 @@ export function AnalysisResults({ data }: AnalysisResultsProps) {
               <div
                 className="w-3 h-3 rounded-full"
                 style={{
-                  backgroundColor:
-                    colors[
-                      Object.keys(languages).indexOf(lang) % colors.length
-                    ],
+                  backgroundColor: colors[Object.keys(languages).indexOf(lang) % colors.length],
                 }}
               />
               <span className="text-sm text-muted-foreground">
@@ -139,68 +86,14 @@ export function AnalysisResults({ data }: AnalysisResultsProps) {
     );
   };
 
-  const urlEncoded = repositoryUrl
-    .replaceAll('http://', '')
-    .replaceAll('https://', '')
-    .replaceAll('/', '|');
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      {/* Repository Header */}
-      <Card className="overflow-hidden">
-        <CardHeader className="bg-gradient-to-r from-primary/5 to-purple-500/5">
-          <div className="flex items-start justify-between">
-            <div>
-              <CardTitle className="text-2xl font-bold flex items-center gap-2">
-                <Github className="w-6 h-6" />
-                <a href={repositoryUrl}>{metadata.name}</a>
-              </CardTitle>
-              <CardDescription className="text-lg">
-                {metadata.description}
-              </CardDescription>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="flex items-center gap-1">
-                <Star className="w-3 h-3" /> {metadata.stars.toLocaleString()}
-              </Badge>
-              <Badge variant="outline" className="flex items-center gap-1">
-                <Code className="w-3 h-3" /> {metadata.language}
-              </Badge>
-            </div>
-          </div>
-        </CardHeader>
-      </Card>
-
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          icon={Star}
-          label="星标数"
-          value={metadata.stars.toLocaleString()}
-          color="yellow"
-        />
-        <StatCard
-          icon={Code}
-          label="主要语言"
-          value={metadata.language}
-          color="blue"
-        />
-        <StatCard
-          icon={FileText}
-          label="文件数"
-          value={structure?.totalFiles || 0}
-          color="green"
-        />
-        <StatCard
-          icon={GitBranch}
-          label="目录数"
-          value={structure?.totalDirectories || 0}
-          color="purple"
-        />
-      </div>
-
+    <div className="space-y-6 max-w-7xl mx-auto h-full">
       {/* Analysis Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full" style={{ height: 'calc(100% - 4rem)' }}>
         <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="insights" className="flex items-center gap-2">
+            <Zap className="w-4 h-4" /> AI洞察
+          </TabsTrigger>
           <TabsTrigger value="overview" className="flex items-center gap-2">
             <Activity className="w-4 h-4" /> 概览
           </TabsTrigger>
@@ -212,9 +105,6 @@ export function AnalysisResults({ data }: AnalysisResultsProps) {
           </TabsTrigger>
           <TabsTrigger value="quality" className="flex items-center gap-2">
             <Shield className="w-4 h-4" /> 质量
-          </TabsTrigger>
-          <TabsTrigger value="insights" className="flex items-center gap-2">
-            <Zap className="w-4 h-4" /> AI洞察
           </TabsTrigger>
         </TabsList>
 
@@ -228,9 +118,7 @@ export function AnalysisResults({ data }: AnalysisResultsProps) {
               {/* Language Distribution */}
               <div>
                 <h3 className="text-lg font-semibold mb-4">语言分布</h3>
-                {structure?.languages && (
-                  <LanguageBar languages={structure.languages} />
-                )}
+                {structure?.languages && <LanguageBar languages={structure.languages} />}
               </div>
 
               {/* Topics */}
@@ -253,15 +141,13 @@ export function AnalysisResults({ data }: AnalysisResultsProps) {
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-muted-foreground" />
                     <span className="text-sm text-muted-foreground">
-                      创建于:{' '}
-                      {new Date(metadata.createdAt).toLocaleDateString('zh-CN')}
+                      创建于: {new Date(metadata.createdAt).toLocaleDateString('zh-CN')}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4 text-muted-foreground" />
                     <span className="text-sm text-muted-foreground">
-                      更新于:{' '}
-                      {new Date(metadata.updatedAt).toLocaleDateString('zh-CN')}
+                      更新于: {new Date(metadata.updatedAt).toLocaleDateString('zh-CN')}
                     </span>
                   </div>
                 </div>
@@ -269,16 +155,12 @@ export function AnalysisResults({ data }: AnalysisResultsProps) {
                   {metadata.license && (
                     <div className="flex items-center gap-2">
                       <FileText className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">
-                        许可证: {metadata.license}
-                      </span>
+                      <span className="text-sm text-muted-foreground">许可证: {metadata.license}</span>
                     </div>
                   )}
                   <div className="flex items-center gap-2">
                     <Users className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">
-                      作者: {metadata.owner}
-                    </span>
+                    <span className="text-sm text-muted-foreground">作者: {metadata.owner}</span>
                   </div>
                 </div>
               </div>
@@ -302,21 +184,15 @@ export function AnalysisResults({ data }: AnalysisResultsProps) {
                     <div className="space-y-2">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">总文件数:</span>
-                        <span className="font-semibold">
-                          {structure?.totalFiles || 0}
-                        </span>
+                        <span className="font-semibold">{structure?.totalFiles || 0}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">总目录数:</span>
-                        <span className="font-semibold">
-                          {structure?.totalDirectories || 0}
-                        </span>
+                        <span className="font-semibold">{structure?.totalDirectories || 0}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">语言种类:</span>
-                        <span className="font-semibold">
-                          {Object.keys(structure?.languages || {}).length}
-                        </span>
+                        <span className="font-semibold">{Object.keys(structure?.languages || {}).length}</span>
                       </div>
                     </div>
                   </CardContent>
@@ -324,40 +200,28 @@ export function AnalysisResults({ data }: AnalysisResultsProps) {
                 <div className="md:col-span-2">
                   <h3 className="text-lg font-semibold mb-4">详细语言统计</h3>
                   <div className="space-y-3">
-                    {Object.entries(structure?.languages || {}).map(
-                      ([lang, count]) => (
-                        <div
-                          key={lang}
-                          className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-3 h-3 rounded-full bg-primary" />
-                            <span className="font-medium">{lang}</span>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            <span className="text-sm text-muted-foreground">
-                              {String(count)} 文件
-                            </span>
-                            <div className="w-24 bg-gray-200 rounded-full h-2">
-                              <div
-                                className="bg-primary h-2 rounded-full"
-                                style={{
-                                  width: `${
-                                    (Number(count) /
-                                      Math.max(
-                                        ...Object.values(
-                                          structure?.languages || {},
-                                        ).map(Number),
-                                      )) *
-                                    100
-                                  }%`,
-                                }}
-                              />
-                            </div>
+                    {Object.entries(structure?.languages || {}).map(([lang, count]) => (
+                      <div key={lang} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="w-3 h-3 rounded-full bg-primary" />
+                          <span className="font-medium">{lang}</span>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <span className="text-sm text-muted-foreground">{String(count)} 文件</span>
+                          <div className="w-24 bg-gray-200 rounded-full h-2">
+                            <div
+                              className="bg-primary h-2 rounded-full"
+                              style={{
+                                width: `${
+                                  (Number(count) / Math.max(...Object.values(structure?.languages || {}).map(Number))) *
+                                  100
+                                }%`,
+                              }}
+                            />
                           </div>
                         </div>
-                      ),
-                    )}
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -377,26 +241,14 @@ export function AnalysisResults({ data }: AnalysisResultsProps) {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {dependencies.map((dep) => (
-                    <Card
-                      key={dep.name}
-                      className="hover:shadow-md transition-shadow"
-                    >
+                    <Card key={dep.name} className="hover:shadow-md transition-shadow">
                       <CardHeader className="pb-3">
                         <CardTitle className="text-base">{dep.name}</CardTitle>
                       </CardHeader>
                       <CardContent className="pt-0">
                         <div className="space-y-1">
-                          <p className="text-sm text-muted-foreground">
-                            版本: {dep.version}
-                          </p>
-                          <Badge
-                            variant={
-                              dep.type === 'production'
-                                ? 'default'
-                                : 'secondary'
-                            }
-                            className="text-xs"
-                          >
+                          <p className="text-sm text-muted-foreground">版本: {dep.version}</p>
+                          <Badge variant={dep.type === 'production' ? 'default' : 'secondary'} className="text-xs">
                             {dep.type === 'production' ? '生产' : '开发'}
                           </Badge>
                         </div>
@@ -426,9 +278,7 @@ export function AnalysisResults({ data }: AnalysisResultsProps) {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-3xl font-bold text-green-500">
-                      {codeQuality?.maintainability || 0}%
-                    </div>
+                    <div className="text-3xl font-bold text-green-500">{codeQuality?.maintainability || 0}%</div>
                   </CardContent>
                 </Card>
                 <Card>
@@ -439,9 +289,7 @@ export function AnalysisResults({ data }: AnalysisResultsProps) {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-3xl font-bold text-blue-500">
-                      {codeQuality?.complexity?.average || 0}
-                    </div>
+                    <div className="text-3xl font-bold text-blue-500">{codeQuality?.complexity?.average || 0}</div>
                   </CardContent>
                 </Card>
                 <Card>
@@ -452,69 +300,50 @@ export function AnalysisResults({ data }: AnalysisResultsProps) {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-3xl font-bold text-orange-500">
-                      {codeQuality?.complexity?.max || 0}
-                    </div>
+                    <div className="text-3xl font-bold text-orange-500">{codeQuality?.complexity?.max || 0}</div>
                   </CardContent>
                 </Card>
               </div>
 
               {/* Complexity Details */}
-              {codeQuality?.complexity?.files &&
-                codeQuality.complexity.files.length > 0 && (
-                  <div>
-                    <h3 className="text-lg font-semibold mb-4">
-                      文件复杂度详情
-                    </h3>
-                    <div className="space-y-2">
-                      {codeQuality.complexity.files
-                        .slice(0, 5)
-                        .map((file: any) => (
-                          <div
-                            key={file.path}
-                            className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+              {codeQuality?.complexity?.files && codeQuality.complexity.files.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">文件复杂度详情</h3>
+                  <div className="space-y-2">
+                    {codeQuality.complexity.files.slice(0, 5).map((file: any) => (
+                      <div key={file.path} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <FileText className="w-4 h-4 text-muted-foreground" />
+                          <span className="font-mono text-sm">{file.path}</span>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <span className="text-sm text-muted-foreground">{file.lines} 行</span>
+                          <span
+                            className={cn(
+                              'text-xs px-2 py-1 rounded-full',
+                              file.complexity > 10
+                                ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                                : file.complexity > 5
+                                  ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                  : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+                            )}
                           >
-                            <div className="flex items-center gap-3">
-                              <FileText className="w-4 h-4 text-muted-foreground" />
-                              <span className="font-mono text-sm">
-                                {file.path}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-4">
-                              <span className="text-sm text-muted-foreground">
-                                {file.lines} 行
-                              </span>
-                              <span
-                                className={cn(
-                                  'text-xs px-2 py-1 rounded-full',
-                                  file.complexity > 10
-                                    ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                                    : file.complexity > 5
-                                    ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                                    : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-                                )}
-                              >
-                                复杂度: {file.complexity}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                    </div>
+                            复杂度: {file.complexity}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
 
         {/* AI Insights Tab */}
-        <TabsContent value="insights" className="space-y-6 h-[48vh]">
+        <TabsContent value="insights" className="space-y-6 h-full">
           <Card className="h-[100%]">
-            <CardContent className="prose prose-slate dark:prose-invert max-w-none h-[100%]">
-              <iframe
-                src={`/project/${urlEncoded}`}
-                style={{ width: '100%', height: '100%' }}
-              ></iframe>
-            </CardContent>
+            <iframe src={`/project/${repoPath}`} className="w-full h-full rounded-lg"></iframe>
           </Card>
         </TabsContent>
       </Tabs>

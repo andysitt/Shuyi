@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import RenderMarkDown from './RenderMarkDown';
 import PageNavigator, { Heading } from './PageNavigator';
-import '../project/[owner]/[repo]/[docName]/index.css';
+import './markdownViewer.css';
 import 'highlight.js/styles/a11y-dark.css';
 
 interface MarkdownViewerProps {
