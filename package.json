@@ -1,5 +1,5 @@
 {
-  "name": "code_grain",
+  "name": "shuyi",
   "version": "1.0.0",
   "description": "AI-powered GitHub repository analysis tool using LLM with code exploration tools",
   "private": true,
@@ -10,7 +10,7 @@
     "lint": "next lint",
     "preflight": " npm run lint && npm run build",
     "type-check": "tsc --noEmit",
-    "prisma:db:push": "node scripts/prisma-db-push.js"
+    "prisma:db:push": "prisma db push"
   },
   "dependencies": {
     "@google/gemini-cli-core": "^0.1.14",

@@ -1,3 +1,6 @@
 {
-  "terminal.integrated.scrollback": 25000
+  "terminal.integrated.scrollback": 25000,
+  "cSpell.words": [
+    "Shuyi"
+  ]
 }

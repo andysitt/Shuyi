@@ -5,7 +5,7 @@ import * as path from 'path';
 class TempManager {
   public createTempDirectory(): string {
     const tempDir = os.tmpdir();
-    const uniqueDir = `codegrain-analysis-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+    const uniqueDir = `shuyi-analysis-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
     const fullPath = path.join(tempDir, uniqueDir);
     fs.mkdirSync(fullPath, { recursive: true });
     return fullPath;

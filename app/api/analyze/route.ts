@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
           const llmConfig = {
             provider: (process.env.LLM_PROVIDER || 'openai') as 'openai' | 'anthropic' | 'custom',
             apiKey: process.env.LLM_API_KEY,
-            model: process.env.LLM_MODEL || 'gpt-4',
+            model: process.env.LLM_MODEL || 'deepseek-reasoner',
             baseURL: process.env.LLM_BASE_URL || undefined,
           };
 

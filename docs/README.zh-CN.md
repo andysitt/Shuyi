@@ -1,6 +1,6 @@
-# CodeGrain: AI 驱动的 GitHub 仓库分析器
+# Shuyi: AI 驱动的 GitHub 仓库分析器
 
-CodeGrain 是一款智能工具，旨在对 GitHub 仓库进行深度分析。它利用大语言模型（LLM）深入研究代码结构、质量、依赖关系，并生成全面的文档，为您提供可操作的见解。
+Shuyi 是一款智能工具，旨在对 GitHub 仓库进行深度分析。它利用大语言模型（LLM）深入研究代码结构、质量、依赖关系，并生成全面的文档，为您提供可操作的见解。
 
 ## 核心功能
 
@@ -46,8 +46,8 @@ CodeGrain 是一款智能工具，旨在对 GitHub 仓库进行深度分析。�
 
 1.  **克隆仓库:**
     ```bash
-    git clone https://github.com/your-username/codegrain.git
-    cd codegrain
+    git clone https://github.com/your-username/shuyi.git
+    cd shuyi
     ```
 
 2.  **安装依赖:**
@@ -56,14 +56,30 @@ CodeGrain 是一款智能工具，旨在对 GitHub 仓库进行深度分析。�
     ```
 
 3.  **设置环境变量:**
-    通过复制示例文件，在项目根目录下创建一个 `.env.local` 文件：
+    通过复制示例文件，在项目根目录下创建一个 `.env` 文件：
     ```bash
-    cp .env.example .env.local
+    cp .env.example .env
     ```
-    现在，打开 `.env.local` 并填写下面环境变量部分所述的必需值。
+    现在，打开 `.env` 并填写下面环境变量部分所述的必需值。
 
 4.  **设置数据库:**
-    确保您的 PostgreSQL 服务器正在运行。应用程序将自动将模式与数据库同步。
+
+    a. **启动 PostgreSQL**: 确保您的 PostgreSQL 服务器正在运行。
+
+    b. **创建数据库**: 您需要为 Shuyi 创建一个专用的数据库。您可以使用 `psql` 或任何数据库图形界面工具来完成。例如：
+       ```sql
+       CREATE DATABASE shuyi;
+       ```
+
+    c. **配置 `.env`**: 更新 `.env` 文件中的 `DATABASE_URL`，使其指向您刚刚创建的数据库。例如：
+       ```
+       DATABASE_URL="postgresql://YOUR_USER:YOUR_PASSWORD@localhost:5432/shuyi"
+       ```
+
+    d. **同步数据模型**: 运行以下命令，将数据模型应用到您的新数据库中。这将会创建所有必需的数据表。
+       ```bash
+       pnpm run prisma:db:push
+       ```
 
 5.  **运行开发服务器:**
     ```bash
@@ -74,7 +90,7 @@ CodeGrain 是一款智能工具，旨在对 GitHub 仓库进行深度分析。�
 
 ## 环境变量
 
-要运行该应用程序，您需要在 `.env.local` 文件中配置以下环境变量：
+要运行该应用程序，您需要在 `.env` 文件中配置以下环境变量：
 
 | 变量                  | 描述                                                                      | 示例                                           |
 | --------------------- | ------------------------------------------------------------------------- | ---------------------------------------------- |
