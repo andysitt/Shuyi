@@ -3,7 +3,6 @@ import { DocsManager } from '../../service/docs-manager';
 
 export async function GET(request: NextRequest, { params }: { params: { path?: string[] } }) {
   try {
-    console.log('------', params);
     // 解析路径参数
     if (!params.path || params.path.length < 2) {
       return new Response('文档未找到', { status: 404 });
@@ -19,7 +18,6 @@ export async function GET(request: NextRequest, { params }: { params: { path?: s
     // 获取项目路径（除最后一个元素外的所有元素）
     const projectPath = params.path.slice(0, -1).join('/');
 
-    console.log('======', projectPath, docName);
     // 获取文档内容
     const content = await DocsManager.getDoc('github.com/' + projectPath, docName);
 

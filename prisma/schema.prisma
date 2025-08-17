@@ -1,0 +1,41 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model AnalysisResult {
+  id              Int      @id @default(autoincrement())
+  repository_url  String   @unique
+  owner           String
+  repo            String
+  metadata        Json
+  structure       Json
+  dependencies    Json
+  code_quality    Json
+  llm_insights    Json
+  status          String   @default("completed")
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  @@map("analysis_results")
+}
+
+model MarkdownDoc {
+  id           Int      @id @default(autoincrement())
+  project_path String
+  doc_name     String
+  content      String
+  is_draft     Boolean  @default(true)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  @@unique([project_path, doc_name, is_draft])
+  @@map("markdown_docs")
+}

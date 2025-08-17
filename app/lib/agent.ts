@@ -1,21 +1,8 @@
-import {
-  Config,
-  ConfigParameters,
-  getFolderStructure,
-  ToolRegistry,
-} from '@google/gemini-cli-core';
+import { Config, ConfigParameters, getFolderStructure, ToolRegistry } from '@google/gemini-cli-core';
 import { ChatOpenAI } from '@langchain/openai';
 import { createOpenAIToolsAgent, AgentExecutor } from 'langchain/agents';
-import {
-  ChatPromptTemplate,
-  MessagesPlaceholder,
-} from '@langchain/core/prompts';
-import {
-  AIMessage,
-  BaseMessage,
-  HumanMessage,
-  ToolMessage,
-} from '@langchain/core/messages';
+import { ChatPromptTemplate, MessagesPlaceholder } from '@langchain/core/prompts';
+import { AIMessage, BaseMessage, HumanMessage, ToolMessage } from '@langchain/core/messages';
 import { wrapToolsForLangChain } from './langchain-tools';
 
 // LLM配置接口
@@ -82,16 +69,12 @@ export class Agent {
     withEnv?: boolean;
     jsonOutput?: boolean;
   }): Promise<AgentResult> {
-    if (
-      this.config.provider !== 'openai' &&
-      this.config.provider !== 'custom'
-    ) {
+    if (this.config.provider !== 'openai' && this.config.provider !== 'custom') {
       throw new Error('目前只支持 OpenAI 或自定义的提供商');
     }
 
     await this.geminiConfig.initialize();
-    const toolRegistry: ToolRegistry =
-      await this.geminiConfig.getToolRegistry();
+    const toolRegistry: ToolRegistry = await this.geminiConfig.getToolRegistry();
 
     const tools = wrapToolsForLangChain(toolRegistry);
 
@@ -161,7 +144,6 @@ export class Agent {
         ...rolePromptParams,
         chat_history: chatHistory,
       });
-      console.log('--------中间步骤:', result.intermediateSteps);
       // 将LangChain的输出格式转换回我们的AgentResult格式
       const finalHistory: ChatMessage[] = [
         ...history,

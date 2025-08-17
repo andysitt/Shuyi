@@ -1,7 +1,10 @@
-import { QueryResult } from 'pg';
-import { connectToDatabase, query } from '@/app/lib/db';
-import redisClient from '@/app/lib/redis-client';
-import { RepositoryMetadata, RepositoryStructure, DependencyInfo, CodeQualityMetrics } from '@/app/types';
+import prisma from '@/app/lib/db';
+import {
+  RepositoryMetadata,
+  RepositoryStructure,
+  DependencyInfo,
+  CodeQualityMetrics,
+} from '@/app/types';
 
 // AnalysisResult接口
 export interface IAnalysisResult {
@@ -9,15 +12,14 @@ export interface IAnalysisResult {
   repositoryUrl: string;
   owner: string;
   repo: string;
-  lastCommitHash: string;
   metadata: RepositoryMetadata;
   structure: RepositoryStructure;
   dependencies: DependencyInfo[];
   codeQuality: CodeQualityMetrics;
-  llmInsights: string;
+  llmInsights: any;
   createdAt: Date;
   updatedAt: Date;
-  status: 'completed' | 'failed';
+  status: string;
 }
 
 // AnalysisProgress接口 (Redis-based)
@@ -32,8 +34,6 @@ export interface IAnalysisProgress {
   updatedAt: string; // ISO 8601 string
 }
 
-const ANALYSIS_PROGRESS_TTL = 24 * 60 * 60; // 24 hours
-
 export class DatabaseAccess {
   // --- Analysis Result Methods (PostgreSQL) ---
   static async saveAnalysisResult(result: {
@@ -47,91 +47,95 @@ export class DatabaseAccess {
     llmInsights: string;
     status: 'completed' | 'failed';
   }): Promise<IAnalysisResult> {
-    await connectToDatabase();
+    const {
+      repositoryUrl,
+      owner,
+      repo,
+      metadata,
+      structure,
+      dependencies,
+      codeQuality,
+      llmInsights,
+      status,
+    } = result;
 
-    const text = `
-      INSERT INTO analysis_results(
-        repository_url, owner, repo, metadata, structure, dependencies, code_quality, llm_insights, status, created_at, updated_at
-      ) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
-      ON CONFLICT (repository_url) 
-      DO UPDATE SET
-        owner = EXCLUDED.owner,
-        repo = EXCLUDED.repo,
-        metadata = EXCLUDED.metadata,
-        structure = EXCLUDED.structure,
-        dependencies = EXCLUDED.dependencies,
-        code_quality = EXCLUDED.code_quality,
-        llm_insights = EXCLUDED.llm_insights,
-        status = EXCLUDED.status,
-        updated_at = NOW()
-      RETURNING *;
-    `;
+    const analysisResult = await prisma.analysisResult.upsert({
+      where: { repository_url: repositoryUrl },
+      update: {
+        owner,
+        repo,
+        metadata: metadata as any,
+        structure: structure as any,
+        dependencies: dependencies as any,
+        code_quality: codeQuality as any,
+        llm_insights: { result: llmInsights } as any,
+        status,
+      },
+      create: {
+        repository_url: repositoryUrl,
+        owner,
+        repo,
+        metadata: metadata as any,
+        structure: structure as any,
+        dependencies: dependencies as any,
+        code_quality: codeQuality as any,
+        llm_insights: { result: llmInsights } as any,
+        status,
+      },
+    });
 
-    const values = [
-      result.repositoryUrl,
-      result.owner,
-      result.repo,
-      JSON.stringify(result.metadata),
-      JSON.stringify(result.structure),
-      JSON.stringify(result.dependencies),
-      JSON.stringify(result.codeQuality),
-      JSON.stringify({ result: result.llmInsights }),
-      result.status,
-    ];
-
-    const res: QueryResult = await query(text, values);
-    return this.mapAnalysisResultRow(res.rows[0]);
+    return this.mapAnalysisResult(analysisResult);
   }
 
-  static async getAnalysisResult(repositoryUrl: string): Promise<IAnalysisResult | null> {
-    await connectToDatabase();
+  static async getAnalysisResult(
+    repositoryUrl: string,
+  ): Promise<IAnalysisResult | null> {
+    const analysisResult = await prisma.analysisResult.findUnique({
+      where: { repository_url: repositoryUrl },
+    });
 
-    const text = 'SELECT * FROM analysis_results WHERE repository_url = $1';
-    const values = [repositoryUrl];
-
-    const res: QueryResult = await query(text, values);
-    if (res.rows.length === 0) {
+    if (!analysisResult) {
       return null;
     }
 
-    return this.mapAnalysisResultRow(res.rows[0]);
+    return this.mapAnalysisResult(analysisResult);
   }
 
-  static async getAnalysisResultById(id: number): Promise<IAnalysisResult | null> {
-    await connectToDatabase();
+  static async getAnalysisResultById(
+    id: number,
+  ): Promise<IAnalysisResult | null> {
+    const analysisResult = await prisma.analysisResult.findUnique({
+      where: { id },
+    });
 
-    const text = 'SELECT * FROM analysis_results WHERE id = $1';
-    const values = [id];
-
-    const res: QueryResult = await query(text, values);
-    if (res.rows.length === 0) {
+    if (!analysisResult) {
       return null;
     }
 
-    return this.mapAnalysisResultRow(res.rows[0]);
+    return this.mapAnalysisResult(analysisResult);
   }
 
   static async getAllAnalysisResults(): Promise<IAnalysisResult[]> {
-    await connectToDatabase();
+    const analysisResults = await prisma.analysisResult.findMany({
+      orderBy: {
+        created_at: 'desc',
+      },
+    });
 
-    const text = 'SELECT * FROM analysis_results ORDER BY created_at DESC';
-    const res: QueryResult = await query(text);
-
-    return res.rows.map((row) => this.mapAnalysisResultRow(row));
+    return analysisResults.map(this.mapAnalysisResult);
   }
 
-  private static mapAnalysisResultRow(row: any): IAnalysisResult {
+  private static mapAnalysisResult(row: any): IAnalysisResult {
     return {
       id: row.id,
       repositoryUrl: row.repository_url,
       owner: row.owner,
       repo: row.repo,
-      lastCommitHash: row.commit_hash,
-      metadata: typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata,
-      structure: typeof row.structure === 'string' ? JSON.parse(row.structure) : row.structure,
-      dependencies: typeof row.dependencies === 'string' ? JSON.parse(row.dependencies) : row.dependencies,
-      codeQuality: typeof row.code_quality === 'string' ? JSON.parse(row.code_quality) : row.code_quality,
-      llmInsights: typeof row.llm_insights === 'string' ? JSON.parse(row.llm_insights) : row.llm_insights,
+      metadata: row.metadata,
+      structure: row.structure,
+      dependencies: row.dependencies,
+      codeQuality: row.code_quality,
+      llmInsights: row.llm_insights,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       status: row.status,

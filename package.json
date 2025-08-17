@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "next lint",
     "preflight": " npm run lint && npm run build",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "prisma:db:push": "node scripts/prisma-db-push.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.10.0",
@@ -20,6 +21,7 @@
     "@langchain/openai": "^0.6.7",
     "@octokit/rest": "^20.0.0",
     "@opentelemetry/exporter-jaeger": "^2.0.1",
+    "@prisma/client": "^6.14.0",
     "@radix-ui/react-alert-dialog": "^1.1.14",
     "@radix-ui/react-dialog": "^1.1.14",
     "@radix-ui/react-progress": "^1.1.7",
@@ -30,7 +32,6 @@
     "@types/adm-zip": "^0.5.7",
     "@types/fs-extra": "^11.0.0",
     "@types/node": "^20.0.0",
-    "@types/pg": "^8.15.5",
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18.0.0",
     "@types/react-syntax-highlighter": "^15.5.13",
@@ -52,7 +53,6 @@
     "next": "^14.0.0",
     "openai": "^4.20.0",
     "path-browserify": "^1.0.1",
-    "pg": "^8.16.3",
     "postcss": "^8.4.0",
     "prettier": "^3.6.2",
     "react": "^18.0.0",
@@ -73,6 +73,8 @@
     "zod": "^4.0.17"
   },
   "devDependencies": {
-    "@tailwindcss/typography": "^0.5.16"
+    "@tailwindcss/typography": "^0.5.16",
+    "dotenv": "^17.2.1",
+    "prisma": "^6.14.0"
   }
 }

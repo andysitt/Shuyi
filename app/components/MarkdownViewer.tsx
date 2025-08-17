@@ -19,9 +19,6 @@ interface MenuItem {
 }
 
 const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ owner, repo, docName = '概述' }) => {
-  console.log('!!!!!!!!!!!', owner, repo, docName);
-  const router = useRouter();
-
   const [sidebar, setSidebar] = useState<string>('');
   const [mainContent, setMainContent] = useState<string>('');
   const [activePath, setActivePath] = useState<string>(docName);
@@ -29,27 +26,30 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ owner, repo, docName = 
   const [headings, setHeadings] = useState<Heading[]>([]);
   const contentRef = useRef<HTMLDivElement>(null);
 
-  const fetchContent = useCallback(async (name: string) => {
-    try {
-      setHeadings([]); // Clear old headings immediately
-      const response = await fetch(`/docs/${owner}/${repo}/${name}`);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch ${name}`);
+  const fetchContent = useCallback(
+    async (name: string) => {
+      try {
+        setHeadings([]); // Clear old headings immediately
+        const response = await fetch(`/docs/${owner}/${repo}/${name}`);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch ${name}`);
+        }
+        const text = await response.text();
+        if (name === '_sidebar.md') {
+          setSidebar(text);
+        } else {
+          setMainContent(text);
+          setActivePath(name.replace('.md', ''));
+        }
+      } catch (error) {
+        console.error(error);
+        if (docName !== '_sidebar.md') {
+          setMainContent(`# Error\n\nCould not load content for \"${docName}\".`);
+        }
       }
-      const text = await response.text();
-      if (name === '_sidebar.md') {
-        setSidebar(text);
-      } else {
-        setMainContent(text);
-        setActivePath(name.replace('.md', ''));
-      }
-    } catch (error) {
-      console.error(error);
-      if (docName !== '_sidebar.md') {
-        setMainContent(`# Error\n\nCould not load content for \"${docName}\".`);
-      }
-    }
-  }, [owner, repo, docName]);
+    },
+    [owner, repo, docName],
+  );
 
   // Fetch sidebar only once
   useEffect(() => {

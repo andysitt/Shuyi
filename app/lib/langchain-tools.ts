@@ -14,9 +14,7 @@ import { schemaToZod } from './schema-to-zod';
  * @param toolRegistry The ToolRegistry instance containing the tools.
  * @returns An array of StructuredTool instances.
  */
-export function wrapToolsForLangChain(
-  toolRegistry: ToolRegistry,
-): DynamicStructuredTool[] {
+export function wrapToolsForLangChain(toolRegistry: ToolRegistry): DynamicStructuredTool[] {
   const tools: DynamicStructuredTool[] = [];
 
   const toolDeclarations = toolRegistry.getFunctionDeclarations();
@@ -60,7 +58,6 @@ export function wrapToolsForLangChain(
           }
         },
       });
-      console.log('-------langChainTool', langChainTool);
       tools.push(langChainTool);
     }
   }
