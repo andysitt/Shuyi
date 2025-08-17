@@ -96,9 +96,23 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ owner, repo, docName = 
   }, [mainContent]);
 
   const handleMenuClick = (docName: string) => {
+    setActivePath(docName);
     const newUrl = `/project/${owner}/${repo}/${docName}`;
-    router.push(newUrl);
+    window.history.pushState({ path: newUrl }, '', newUrl);
   };
+
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      const newDocName = window.location.pathname.split('/').pop() || '概述';
+      setActivePath(newDocName);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
 
   return (
     <div className="markdown-viewer">
