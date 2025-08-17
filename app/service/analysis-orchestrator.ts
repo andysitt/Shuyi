@@ -127,10 +127,7 @@ export class AnalysisOrchestrator {
       const taskList = (tasksResult as any).document_tasks;
 
       if (Array.isArray(taskList)) {
-        const repositoryUrlEncoded = repositoryUrl
-          .replaceAll('http://', '')
-          .replaceAll('https://', '')
-          .replaceAll('/', '|');
+        const repositoryUrlEncoded = repositoryUrl.replaceAll('http://', '').replaceAll('https://', '');
         taskList.unshift({
           title: '概述',
           goal: '对当前项目进行简要介绍',
@@ -142,7 +139,7 @@ export class AnalysisOrchestrator {
         const writePromises = taskList.map(async (task, index) => {
           try {
             const result = await this.write(task);
-            await DocsManager.saveDoc(repositoryUrlEncoded, task.title.replaceAll(' ', ''), result.content);
+            await DocsManager.saveDoc(repositoryUrlEncoded, task.title.replaceAll(' ', ''), result);
             onProgress?.({
               stage: 'AI智能分析-编写分析文档',
               progress: 80 + Math.floor(((index + 1) / taskList.length) * 20),
@@ -165,6 +162,8 @@ export class AnalysisOrchestrator {
         const sidebar = `<!-- docs/_sidebar.md -->\n${outline}`;
         await DocsManager.saveDoc(repositoryUrlEncoded, '_sidebar', sidebar);
 
+        await DocsManager.publishDocs(repositoryUrlEncoded);
+
         onProgress?.({ stage: 'AI智能分析-完成', progress: 100 });
       }
       return true;
@@ -182,9 +181,6 @@ export class AnalysisOrchestrator {
   // 执行具体编写任务 - 此方法保持不变，因为它需要一个具备工具使用能力的完整Agent
   private async write(task: { title: string; goal: string; outline: string; targetReader: string }) {
     const actionPrompt = `结合当前仓库中的代码，根据以下要求来编写一篇文档
-    如若需要，你可以使用工具来阅读当前仓库中的任何文件
-    最终输出不要包含任何文档之外的内容
-    如有必要，可在段落末尾列出当前段落的相关文件格式如下：[文件名称](文件相对路径#L起始行-L截止行)
     ------------------------------
     ## 标题
     {title}
@@ -202,9 +198,17 @@ export class AnalysisOrchestrator {
       actionPrompt,
       actionPromptParams: { ...task },
       rolePrompt: PromptBuilder.SYSTEM_PROMPT_WRITER,
+      rolePromptParams: { json: PromptBuilder.SYSTEM_PROMPT_WRITER_JSON },
+      jsonOutput: true,
       withEnv: true,
     });
-    return result;
+    if (!result.success) {
+      throw new Error(`Failed to create doc ${task.title}: ${result.error}`);
+    }
+
+    const docResult = JSON.parse(result.content);
+    console.log('-----docResult', docResult);
+    return (docResult as any).document;
   }
 
   // 构建最终结果

@@ -49,7 +49,7 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ owner, repo, docName = 
         setMainContent(`# Error\n\nCould not load content for \"${docName}\".`);
       }
     }
-  }, []);
+  }, [owner, repo, docName]);
 
   // Fetch sidebar only once
   useEffect(() => {

@@ -2,8 +2,6 @@ import { Octokit } from '@octokit/rest';
 import { RepositoryMetadata } from '@/app/types';
 import fs from 'fs-extra';
 import path from 'path';
-import { Readable } from 'stream';
-import { pipeline } from 'stream/promises';
 import { createWriteStream } from 'fs';
 
 export class GitHubClient {
@@ -61,6 +59,11 @@ export class GitHubClient {
         this.octokit.repos.get({ owner, repo }),
         this.octokit.repos.listLanguages({ owner, repo }),
       ]);
+      const repoLastCommit = await this.octokit.repos.getCommit({
+        owner,
+        repo,
+        ref: repoResponse.data.default_branch, // 可以是 branch, tag, 或 commit SHA
+      });
 
       const repoData = repoResponse.data;
       const languages = languagesResponse.data;
@@ -82,6 +85,11 @@ export class GitHubClient {
         size: repoData.size,
         createdAt: new Date(repoData.created_at),
         updatedAt: new Date(repoData.updated_at),
+        lastCommit: {
+          sha: repoLastCommit.data.sha,
+          message: repoLastCommit.data.commit.message,
+          date: new Date(repoLastCommit.data.commit.author?.date || Date.now()),
+        },
       };
     } catch (error) {
       throw new Error(`获取仓库元数据失败: ${error}`);

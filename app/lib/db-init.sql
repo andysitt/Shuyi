@@ -24,9 +24,10 @@ CREATE TABLE IF NOT EXISTS markdown_docs (
     project_path TEXT NOT NULL,
     doc_name TEXT NOT NULL,
     content TEXT NOT NULL,
+    is_draft BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(project_path, doc_name)
+    UNIQUE(project_path, doc_name, is_draft)
 );
 
 -- 创建索引

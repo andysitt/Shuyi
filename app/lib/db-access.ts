@@ -9,6 +9,7 @@ export interface IAnalysisResult {
   repositoryUrl: string;
   owner: string;
   repo: string;
+  lastCommitHash: string;
   metadata: RepositoryMetadata;
   structure: RepositoryStructure;
   dependencies: DependencyInfo[];
@@ -125,6 +126,7 @@ export class DatabaseAccess {
       repositoryUrl: row.repository_url,
       owner: row.owner,
       repo: row.repo,
+      lastCommitHash: row.commit_hash,
       metadata: typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata,
       structure: typeof row.structure === 'string' ? JSON.parse(row.structure) : row.structure,
       dependencies: typeof row.dependencies === 'string' ? JSON.parse(row.dependencies) : row.dependencies,

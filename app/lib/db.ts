@@ -1,4 +1,4 @@
-import { Pool, QueryResult } from 'pg';
+import { Pool, QueryResult, PoolClient } from 'pg';
 
 // 数据库连接配置
 const pool = new Pool({
@@ -40,6 +40,24 @@ export async function query(
     const duration = Date.now() - start;
     console.error('查询执行失败', { text, duration, error: err });
     throw err;
+  }
+}
+
+// 事务处理
+export async function transaction<T>(
+  callback: (client: PoolClient) => Promise<T>,
+): Promise<T> {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await callback(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
   }
 }
 

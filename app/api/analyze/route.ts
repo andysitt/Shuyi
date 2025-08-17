@@ -212,6 +212,7 @@ export async function POST(request: NextRequest) {
             repositoryUrl,
             owner: metadata.owner,
             repo: metadata.name,
+            lastCommitHash: metadata.lastCommit.sha,
             metadata,
             structure: basicResult.structure,
             dependencies: basicResult.dependencies,

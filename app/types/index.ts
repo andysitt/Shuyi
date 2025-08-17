@@ -10,6 +10,11 @@ export interface RepositoryMetadata {
   size: number;
   createdAt: Date;
   updatedAt: Date;
+  lastCommit: {
+    sha: string;
+    message: string;
+    date: Date;
+  };
 }
 
 export interface RepositoryStructure {

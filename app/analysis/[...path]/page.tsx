@@ -167,6 +167,11 @@ export default function AnalysisDetailPage() {
             <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
               <Clock className="w-4 h-4" />
               <span>最后分析于: {new Date(analysisData.updatedAt).toLocaleString('zh-CN')}</span>
+              <a
+                href={`https://www.github.com/${path.join('/')}/tree/${analysisData.metadata.lastCommit?.sha || 'main'}`}
+              >
+                {analysisData.metadata.lastCommit?.sha || 'main'}
+              </a>
             </div>
           </div>
         </div>
