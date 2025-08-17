@@ -38,6 +38,5 @@ next-env.d.ts
 .kiro
 .env.local
 
-/docs
 
 /generated/prisma

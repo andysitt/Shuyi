@@ -165,3 +165,4 @@ Use hyphens instead of underscores in flag names (e.g. `my-flag` instead of `my_
 
 - 不要擅自删除与当前要求无关的代码或者文件，任何涉及到删除已有代码的操作都需要二次确认，并说明原因。
 - 始终使用中文进行交流
+- 使用pnpm来管理依赖

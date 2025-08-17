@@ -117,8 +117,7 @@ export default function AnalysisDetailPage() {
   return (
     <div className="h-screen bg-background">
       <header
-        className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm"
-        style={{ boxShadow: '0px 6px 6px 0px #ddd' }}
+        className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-muted border-solid border-b-[1px]"
         onMouseEnter={() => setIsHeaderExpanded(true)}
         onMouseLeave={() => setIsHeaderExpanded(false)}
       >
@@ -170,7 +169,7 @@ export default function AnalysisDetailPage() {
               <a
                 href={`https://www.github.com/${path.join('/')}/tree/${analysisData.metadata.lastCommit?.sha || 'main'}`}
               >
-                {analysisData.metadata.lastCommit?.sha || 'main'}
+                {`(${(analysisData.metadata.lastCommit?.sha || 'main').slice(0, 6)})`}
               </a>
             </div>
           </div>
