@@ -3,7 +3,7 @@
 import Head from 'next/head';
 import Script from 'next/script';
 import './index.css';
-import 'docsify/lib/themes/vue.css';
+
 import { useEffect } from 'react';
 
 const DocsifyPage = ({ params }: { params: { path: string[] } }) => {
@@ -12,6 +12,35 @@ const DocsifyPage = ({ params }: { params: { path: string[] } }) => {
   useEffect(() => {
     // 确保只在客户端执行
     if (typeof window === 'undefined') return;
+
+    const loadDocsifyTheme = () => {
+      const isDarkMode = document.body.classList.contains('dark');
+      const themeName = isDarkMode ? 'dark' : 'vue';
+      const themeUrl = `//cdn.jsdelivr.net/npm/docsify@4/lib/themes/${themeName}.css`;
+
+      const existingTheme = document.getElementById('docsify-theme');
+      if (existingTheme) {
+        existingTheme.remove();
+      }
+
+      const link = document.createElement('link');
+      link.id = 'docsify-theme';
+      link.rel = 'stylesheet';
+      link.href = themeUrl;
+      document.head.appendChild(link);
+    };
+
+    loadDocsifyTheme();
+
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+          loadDocsifyTheme();
+        }
+      }
+    });
+
+    observer.observe(document.body, { attributes: true });
 
     // 初始化配置
     const initDocsify = () => {
@@ -40,9 +69,14 @@ const DocsifyPage = ({ params }: { params: { path: string[] } }) => {
     }
 
     return () => {
+      observer.disconnect();
       const existingScript = document.querySelector('script[src*="docsify@4"]');
       if (existingScript) {
         existingScript.remove();
+      }
+      const existingTheme = document.getElementById('docsify-theme');
+      if (existingTheme) {
+        existingTheme.remove();
       }
     };
   }, [path]);

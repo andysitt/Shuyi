@@ -50,18 +50,18 @@ const PageNavigator: React.FC<PageNavigatorProps> = ({ headings }) => {
 
   return (
     <div className="group fixed top-8 right-8 z-50">
-      <div className="p-2 bg-white bg-opacity-80 backdrop-blur-sm rounded-md shadow-lg cursor-pointer">
+      <div className="p-2 bg-popover bg-opacity-80 backdrop-blur-sm rounded-md shadow-lg cursor-pointer">
         <MenuIcon />
       </div>
-      <div className="absolute top-0 right-0 mt-10 w-auto bg-white rounded-md shadow-xl  transition-opacity duration-300 invisible group-hover:visible pt-2 pb-2">
+      <div className="absolute top-0 right-0 mt-10 w-auto bg-popover rounded-md shadow-xl  transition-opacity duration-300 invisible group-hover:visible pt-2 pb-2">
         <ul className="py-1 px-0 m-0">
           {headings
             .filter((i) => i.level === 2)
             .map((heading) => (
-              <li key={heading.id} className=" list-none hover:bg-gray-100">
+              <li key={heading.id} className=" list-none hover:bg-muted">
                 <span
                   onClick={(e) => handleAnchorClick(e, heading.id)}
-                  className="block text-sm text-gray-600  px-2 py-2 cursor-pointer w-max"
+                  className="block text-sm text-muted-foreground  px-2 py-2 cursor-pointer w-max"
                 >
                   {heading.text}
                 </span>

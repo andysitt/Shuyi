@@ -3,15 +3,15 @@
   display: flex;
   min-height: 100%;
   /* height: calc(100vh - 60px); Adjust height assuming a 60px navbar, if any. Use 100% if nested. */
-  background-color: #fff;
+  background-color: hsl(var(--background));
 }
 
 /* Sidebar styles */
 .sidebar {
   width: 280px;
   flex-shrink: 0;
-  background-color: #f8f9fa;
-  border-right: 1px solid #dee2e6;
+  background-color: hsl(var(--card));
+  border-right: 1px solid hsl(var(--border));
   overflow-y: auto;
 }
 
@@ -29,18 +29,18 @@
   border-radius: 6px;
   margin-bottom: 5px;
   font-size: 14px;
-  color: #495057;
+  color: hsl(var(--muted-foreground));
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .sidebar li:hover {
-  background-color: #e9ecef;
-  color: #000;
+  background-color: hsl(var(--muted));
+  color: hsl(var(--foreground));
 }
 
 .sidebar li.active {
-  background-color: #6c757d;
-  color: white;
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
   font-weight: 500;
 }
 

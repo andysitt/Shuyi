@@ -121,7 +121,12 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ owner, repo, docName = 
           {menuItems.map((item) => (
             <li
               key={item.path}
-              className={encodeURIComponent(item.path.replace('.md', '')) === activePath ? 'active' : ''}
+              className={
+                encodeURIComponent(item.path.replace('.md', '')) === activePath ||
+                item.path.replace('.md', '') === activePath
+                  ? 'active'
+                  : ''
+              }
               onClick={() => handleMenuClick(item.path.replace('.md', ''))}
             >
               {item.title}
@@ -129,7 +134,7 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ owner, repo, docName = 
           ))}
         </ul>
       </aside>
-      <main ref={contentRef} className="main-content prose dark:prose-invert relative">
+      <main ref={contentRef} className="main-content prose  dark:prose-invert relative">
         <PageNavigator headings={headings} />
         <RenderMarkDown content={mainContent} />
       </main>

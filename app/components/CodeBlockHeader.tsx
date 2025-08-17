@@ -51,7 +51,7 @@ const CodeBlockHeader: React.FC<CodeBlockHeaderProps> = ({ language, code }) => 
   };
 
   return (
-    <div className="flex items-center justify-between bg-gray-800 text-white px-4 py-2 rounded-t-md">
+    <div className="flex items-center justify-between bg-secondary text-secondary-foreground px-4 py-2 rounded-t-md">
       <span className="text-xs font-sans">{language}</span>
       <button onClick={handleCopy} className="flex items-center gap-1 text-xs">
         {isCopied ? <CheckIcon /> : <CopyIcon />}

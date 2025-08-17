@@ -208,7 +208,7 @@ export function AnalysisResults({ data, repoPath }: AnalysisResultsProps) {
                         </div>
                         <div className="flex items-center gap-4">
                           <span className="text-sm text-muted-foreground">{String(count)} 文件</span>
-                          <div className="w-24 bg-gray-200 rounded-full h-2">
+                          <div className="w-24 bg-muted rounded-full h-2">
                             <div
                               className="bg-primary h-2 rounded-full"
                               style={{

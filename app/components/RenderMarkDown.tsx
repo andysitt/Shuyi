@@ -22,12 +22,11 @@ const getCodeString = (node: any): string => {
   return '';
 };
 
-
 function RenderMarkdown({ content }: { content: string }) {
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
-      rehypePlugins={[rehypeSlug, rehypeHighlight]}
+      rehypePlugins={[rehypeSlug, [rehypeHighlight, { detect: true, ignoreMissing: true }]]}
       components={{
         pre: (props: any) => {
           const { node, children, ...rest } = props;
@@ -37,7 +36,7 @@ function RenderMarkdown({ content }: { content: string }) {
             const className = codeNode.properties.className || [];
             const languageClass = className.find((cls: string) => cls.startsWith('language-'));
             const language = languageClass ? languageClass.replace('language-', '') : 'text';
-            
+
             const codeString = getCodeString(codeNode);
 
             if (language === 'mermaid') {
@@ -48,12 +47,12 @@ function RenderMarkdown({ content }: { content: string }) {
               <div className="code-block-wrapper not-prose my-4">
                 <CodeBlockHeader language={language} code={codeString} />
                 <pre {...rest} className={`${rest.className || ''} text-sm rounded-b-md mt-0`}>
-                  {children}
+                  <span className="hljs mb-0 p-4 block min-h-full overflow-auto">{children}</span>
                 </pre>
               </div>
             );
           }
-          
+
           // Fallback for any other pre tags
           return <pre {...rest}>{children}</pre>;
         },
