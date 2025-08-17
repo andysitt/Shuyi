@@ -296,7 +296,7 @@ export default function AnalyzePageClient() {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 rounded-full mb-4">
             <Github className="w-8 h-8 text-primary" />
           </div>
-          <h1 className="text-4xl font-bold text-foreground mb-4">GitHub仓库分析器</h1>
+          <h1 className="text-4xl font-bold text-foreground mb-4">述义-AI代码分析</h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             输入GitHub仓库URL，我们将为您提供全面的代码分析报告
           </p>

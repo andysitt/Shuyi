@@ -4,13 +4,13 @@ import '@radix-ui/themes/styles.css';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'GitHub仓库智能分析器',
-  description: '使用AI技术深入分析GitHub仓库结构、代码质量和架构模式',
+  title: '述义-AI代码分析',
+  description: '使用AI技术深入分析GitHub仓库结构、代码质量和架构模式，并生成文档',
   keywords: ['GitHub', '代码分析', 'AI', '仓库分析', '代码质量'],
   authors: [{ name: 'GitHub Analyzer Team' }],
   openGraph: {
-    title: 'GitHub仓库智能分析器',
-    description: '使用AI技术深入分析GitHub仓库结构、代码质量和架构模式',
+    title: '述义-AI代码分析',
+    description: '使用AI技术深入分析GitHub仓库结构、代码质量和架构模式，并生成文档',
     type: 'website',
   },
 };

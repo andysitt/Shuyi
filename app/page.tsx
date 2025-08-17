@@ -128,14 +128,14 @@ export default function Home() {
         {/* Header */}
         <div className="text-center mb-12 pt-8">
           <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4 bg-gradient-to-r from-primary to-purple-600 bg-clip-text ">
-            GitHub仓库分析器
+            述义-AI代码分析
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto">请输入任意GitHub仓库地址</p>
         </div>
 
         {/* Search and Actions */}
         <div className="flex flex-col md:flex-row gap-4 mb-8">
-          <div className="relative flex-1">
+          <div className="relative flex-1 flex justify-center">
             <RepoSearcher onAnalysisSubmit={handleAnalysisSubmit} />
           </div>
         </div>
