@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Package,
   Shield,
@@ -34,6 +35,7 @@ interface AnalysisResultsProps {
 }
 
 export function AnalysisResults({ data, repoPath }: AnalysisResultsProps) {
+  const t = useTranslations('AnalysisResults');
   const [activeTab, setActiveTab] = useState('insights');
   const { metadata, structure, dependencies, codeQuality } = data;
 
@@ -92,19 +94,19 @@ export function AnalysisResults({ data, repoPath }: AnalysisResultsProps) {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full" style={{ height: 'calc(100% - 4rem)' }}>
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="insights" className="flex items-center gap-2">
-            <Zap className="w-4 h-4" /> AI洞察
+            <Zap className="w-4 h-4" /> {t('aiInsights')}
           </TabsTrigger>
           <TabsTrigger value="overview" className="flex items-center gap-2">
-            <Activity className="w-4 h-4" /> 概览
+            <Activity className="w-4 h-4" /> {t('overview')}
           </TabsTrigger>
           <TabsTrigger value="structure" className="flex items-center gap-2">
-            <GitBranch className="w-4 h-4" /> 结构
+            <GitBranch className="w-4 h-4" /> {t('structure')}
           </TabsTrigger>
           <TabsTrigger value="dependencies" className="flex items-center gap-2">
-            <Package className="w-4 h-4" /> 依赖
+            <Package className="w-4 h-4" /> {t('dependencies')}
           </TabsTrigger>
           <TabsTrigger value="quality" className="flex items-center gap-2">
-            <Shield className="w-4 h-4" /> 质量
+            <Shield className="w-4 h-4" /> {t('quality')}
           </TabsTrigger>
         </TabsList>
 
@@ -112,12 +114,12 @@ export function AnalysisResults({ data, repoPath }: AnalysisResultsProps) {
         <TabsContent value="overview" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>项目概览</CardTitle>
+              <CardTitle>{t('projectOverview')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Language Distribution */}
               <div>
-                <h3 className="text-lg font-semibold mb-4">语言分布</h3>
+                <h3 className="text-lg font-semibold mb-4">{t('languageDistribution')}</h3>
                 {structure?.languages && <LanguageBar languages={structure.languages} />}
               </div>
 
@@ -147,7 +149,7 @@ export function AnalysisResults({ data, repoPath }: AnalysisResultsProps) {
                   <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4 text-muted-foreground" />
                     <span className="text-sm text-muted-foreground">
-                      更新于: {new Date(metadata.updatedAt).toLocaleDateString('zh-CN')}
+                      {t('updatedAt')}: {new Date(metadata.updatedAt).toLocaleDateString('zh-CN')}
                     </span>
                   </div>
                 </div>
@@ -172,33 +174,33 @@ export function AnalysisResults({ data, repoPath }: AnalysisResultsProps) {
         <TabsContent value="structure" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>项目结构分析</CardTitle>
+              <CardTitle>{t('projectStructureAnalysis')}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg">文件统计</CardTitle>
+                    <CardTitle className="text-lg">{t('fileStatistics')}</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">总文件数:</span>
+                        <span className="text-muted-foreground">{t('totalFiles')}:</span>
                         <span className="font-semibold">{structure?.totalFiles || 0}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">总目录数:</span>
+                        <span className="text-muted-foreground">{t('totalDirectories')}:</span>
                         <span className="font-semibold">{structure?.totalDirectories || 0}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">语言种类:</span>
+                        <span className="text-muted-foreground">{t('languageCount')}:</span>
                         <span className="font-semibold">{Object.keys(structure?.languages || {}).length}</span>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
                 <div className="md:col-span-2">
-                  <h3 className="text-lg font-semibold mb-4">详细语言统计</h3>
+                  <h3 className="text-lg font-semibold mb-4">{t('detailedLanguageStats')}</h3>
                   <div className="space-y-3">
                     {Object.entries(structure?.languages || {}).map(([lang, count]) => (
                       <div key={lang} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
@@ -207,7 +209,9 @@ export function AnalysisResults({ data, repoPath }: AnalysisResultsProps) {
                           <span className="font-medium">{lang}</span>
                         </div>
                         <div className="flex items-center gap-4">
-                          <span className="text-sm text-muted-foreground">{String(count)} 文件</span>
+                          <span className="text-sm text-muted-foreground">
+                            {String(count)} {t('files')}
+                          </span>
                           <div className="w-24 bg-muted rounded-full h-2">
                             <div
                               className="bg-primary h-2 rounded-full"
@@ -233,11 +237,11 @@ export function AnalysisResults({ data, repoPath }: AnalysisResultsProps) {
         <TabsContent value="dependencies" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>依赖分析</CardTitle>
+              <CardTitle>{t('dependencyAnalysis')}</CardTitle>
             </CardHeader>
             <CardContent>
               {dependencies.length === 0 ? (
-                <p className="text-muted-foreground">未找到依赖项</p>
+                <p className="text-muted-foreground">{t('noDependenciesFound')}</p>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {dependencies.map((dep) => (
@@ -247,9 +251,11 @@ export function AnalysisResults({ data, repoPath }: AnalysisResultsProps) {
                       </CardHeader>
                       <CardContent className="pt-0">
                         <div className="space-y-1">
-                          <p className="text-sm text-muted-foreground">版本: {dep.version}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {t('version')}: {dep.version}
+                          </p>
                           <Badge variant={dep.type === 'production' ? 'default' : 'secondary'} className="text-xs">
-                            {dep.type === 'production' ? '生产' : '开发'}
+                            {dep.type === 'production' ? t('production') : t('development')}
                           </Badge>
                         </div>
                       </CardContent>
@@ -265,7 +271,7 @@ export function AnalysisResults({ data, repoPath }: AnalysisResultsProps) {
         <TabsContent value="quality" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>代码质量分析</CardTitle>
+              <CardTitle>{t('codeQualityAnalysis')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Quality Metrics */}
@@ -274,7 +280,7 @@ export function AnalysisResults({ data, repoPath }: AnalysisResultsProps) {
                   <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
                       <TrendingUp className="w-5 h-5 text-green-500" />
-                      可维护性
+                      {t('maintainability')}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -285,7 +291,7 @@ export function AnalysisResults({ data, repoPath }: AnalysisResultsProps) {
                   <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
                       <Activity className="w-5 h-5 text-blue-500" />
-                      平均复杂度
+                      {t('avgComplexity')}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -296,7 +302,7 @@ export function AnalysisResults({ data, repoPath }: AnalysisResultsProps) {
                   <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
                       <AlertCircle className="w-5 h-5 text-orange-500" />
-                      最大复杂度
+                      {t('maxComplexity')}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -308,31 +314,36 @@ export function AnalysisResults({ data, repoPath }: AnalysisResultsProps) {
               {/* Complexity Details */}
               {codeQuality?.complexity?.files && codeQuality.complexity.files.length > 0 && (
                 <div>
-                  <h3 className="text-lg font-semibold mb-4">文件复杂度详情</h3>
+                  <h3 className="text-lg font-semibold mb-4">{t('fileComplexityDetails')}</h3>
                   <div className="space-y-2">
-                    {codeQuality.complexity.files.slice(0, 5).map((file: any) => (
-                      <div key={file.path} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <FileText className="w-4 h-4 text-muted-foreground" />
-                          <span className="font-mono text-sm">{file.path}</span>
+                    {codeQuality.complexity.files
+                      .sort((a, b) => b.complexity - a.complexity)
+                      .slice(0, 150)
+                      .map((file: any) => (
+                        <div key={file.path} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <FileText className="w-4 h-4 text-muted-foreground" />
+                            <span className="font-mono text-sm">{file.path}</span>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <span className="text-sm text-muted-foreground">
+                              {file.lines} {t('lines')}
+                            </span>
+                            <span
+                              className={cn(
+                                'text-xs px-2 py-1 rounded-full',
+                                file.complexity > 10
+                                  ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                                  : file.complexity > 5
+                                    ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                    : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+                              )}
+                            >
+                              {`${t('complexity')}:${file.complexity}`}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-4">
-                          <span className="text-sm text-muted-foreground">{file.lines} 行</span>
-                          <span
-                            className={cn(
-                              'text-xs px-2 py-1 rounded-full',
-                              file.complexity > 10
-                                ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                                : file.complexity > 5
-                                  ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                                  : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-                            )}
-                          >
-                            复杂度: {file.complexity}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
+                      ))}
                   </div>
                 </div>
               )}

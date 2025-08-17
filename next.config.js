@@ -1,3 +1,5 @@
+const withNextIntl = require('next-intl/plugin')('./app/i18n/request.ts');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
@@ -10,6 +12,12 @@ const nextConfig = {
     REDIS_URL: process.env.REDIS_URL,
   },
   webpack(config) {
+    // 添加对SVG文件的支持
+    config.module.rules.push({
+      test: /\.svg$/,
+      use: ['@svgr/webpack'],
+    });
+    
     config.resolve.fallback = {
       path: require.resolve('path-browserify'),
     };
@@ -17,4 +25,4 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+module.exports = withNextIntl(nextConfig);

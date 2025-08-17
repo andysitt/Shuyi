@@ -1,0 +1,84 @@
+{
+  "Navigation": {
+    "home": "首页",
+    "about": "关于",
+    "contact": "联系",
+    "chinese": "中文",
+    "english": "English",
+    "switchLanguage": "切换语言"
+  },
+  "HomePage": {
+    "title": "述义-AI代码分析",
+    "description": "使用AI技术深入分析GitHub仓库结构、代码质量和架构模式，并生成文档",
+    "analyzeButton": "开始分析",
+    "searchPlaceholder": "请输入GitHub仓库地址",
+    "loading": "加载中...",
+    "noProjects": "暂无已分析的项目",
+    "startAnalysis": "开始分析您的第一个GitHub仓库",
+    "noMatchingProjects": "未找到匹配的项目",
+    "tryDifferentKeywords": "请尝试其他搜索关键词"
+  },
+  "ProjectCard": {
+    "stars": "星标",
+    "noDescription": "暂无描述"
+  },
+  "AnalyzePage": {
+    "title": "述义-AI代码分析",
+    "description": "输入GitHub仓库URL，我们将为您提供全面的代码分析报告",
+    "startNewAnalysis": "开始新分析",
+    "analyzing": "分析进行中",
+    "startDescription": "输入GitHub仓库URL开始分析",
+    "analyzingDescription": "正在分析仓库，请耐心等待...",
+    "cancelAnalysis": "取消分析",
+    "enterRepositoryUrl": "请输入GitHub仓库URL",
+    "initializingAnalysis": "初始化分析...",
+    "analysisStartFailed": "分析启动失败",
+    "cancelled": "已取消",
+    "status": {
+      "preparing": "准备阶段",
+      "analyzing": "分析中",
+      "completed": "完成"
+    }
+  },
+  "AnalysisPage": {
+    "loading": "加载分析结果中...",
+    "loadFailed": "加载失败",
+    "retry": "重试",
+    "backToHome": "返回主页",
+    "notFound": "未找到分析结果",
+    "notFoundDesc": "指定的分析结果不存在",
+    "share": "分享",
+    "reanalyze": "重新分析",
+    "back": "返回",
+    "lastAnalyzed": "最后分析于"
+  },
+  "AnalysisResults": {
+    "aiInsights": "AI洞察",
+    "overview": "概览",
+    "structure": "结构",
+    "dependencies": "依赖",
+    "quality": "质量",
+    "projectOverview": "项目概览",
+    "languageDistribution": "语言分布",
+    "projectStructureAnalysis": "项目结构分析",
+    "dependencyAnalysis": "依赖分析",
+    "codeQualityAnalysis": "代码质量分析",
+    "noDependenciesFound": "未找到依赖项",
+    "updatedAt": "更新于",
+    "fileStatistics": "文件统计",
+    "totalFiles": "总文件数",
+    "totalDirectories": "总目录数",
+    "languageCount": "语言种类",
+    "detailedLanguageStats": "详细语言统计",
+    "files": "个文件",
+    "version": "版本",
+    "production": "生产",
+    "development": "开发",
+    "maintainability": "可维护性",
+    "maxComplexity": "最大复杂度",
+    "avgComplexity": "平均复杂度",
+    "fileComplexityDetails": "文件复杂度详情",
+    "complexity": "复杂度",
+    "lines": "行"
+  }
+}

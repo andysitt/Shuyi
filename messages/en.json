@@ -1,0 +1,84 @@
+{
+  "Navigation": {
+    "home": "Home",
+    "about": "About",
+    "contact": "Contact",
+    "chinese": "中文",
+    "english": "English",
+    "switchLanguage": "Switch language"
+  },
+  "HomePage": {
+    "title": "Welcome to Shuyi - AI Code Analysis",
+    "description": "Using AI technology to deeply analyze GitHub repository structure, code quality and architecture patterns, and generate documentation",
+    "analyzeButton": "Start Analysis",
+    "searchPlaceholder": "Please enter a GitHub repository URL",
+    "loading": "Loading...",
+    "noProjects": "No analyzed projects yet",
+    "startAnalysis": "Start analyzing your first GitHub repository",
+    "noMatchingProjects": "No matching projects found",
+    "tryDifferentKeywords": "Please try different search keywords"
+  },
+  "ProjectCard": {
+    "stars": "Stars",
+    "noDescription": "No description"
+  },
+  "AnalyzePage": {
+    "title": "Shuyi - AI Code Analysis",
+    "description": "Enter a GitHub repository URL and we will provide you with a comprehensive code analysis report",
+    "startNewAnalysis": "Start New Analysis",
+    "analyzing": "Analyzing",
+    "startDescription": "Enter GitHub repository URL to start analysis",
+    "analyzingDescription": "Analyzing repository, please wait...",
+    "cancelAnalysis": "Cancel Analysis",
+    "enterRepositoryUrl": "Please enter GitHub repository URL",
+    "initializingAnalysis": "Initializing analysis...",
+    "analysisStartFailed": "Failed to start analysis",
+    "cancelled": "Cancelled",
+    "status": {
+      "preparing": "Preparing",
+      "analyzing": "Analyzing",
+      "completed": "Completed"
+    }
+  },
+  "AnalysisPage": {
+    "loading": "Loading analysis results...",
+    "loadFailed": "Load failed",
+    "retry": "Retry",
+    "backToHome": "Back to home",
+    "notFound": "Analysis result not found",
+    "notFoundDesc": "The specified analysis result does not exist",
+    "share": "Share",
+    "reanalyze": "Re-analyze",
+    "back": "Back",
+    "lastAnalyzed": "Last analyzed"
+  },
+  "AnalysisResults": {
+    "aiInsights": "AI Insights",
+    "overview": "Overview",
+    "structure": "Structure",
+    "dependencies": "Dependencies",
+    "quality": "Quality",
+    "projectOverview": "Project Overview",
+    "languageDistribution": "Language Distribution",
+    "projectStructureAnalysis": "Project Structure Analysis",
+    "dependencyAnalysis": "Dependency Analysis",
+    "codeQualityAnalysis": "Code Quality Analysis",
+    "noDependenciesFound": "No dependencies found",
+    "updatedAt": "Updated at",
+    "fileStatistics": "File Statistics",
+    "totalFiles": "Total Files",
+    "totalDirectories": "Total Directories",
+    "languageCount": "Language Count",
+    "detailedLanguageStats": "Detailed Language Statistics",
+    "files": "files",
+    "version": "Version",
+    "production": "Production",
+    "development": "Development",
+    "maintainability": "Maintainability",
+    "maxComplexity": "Max Complexity",
+    "avgComplexity": "Avg Complexity",
+    "fileComplexityDetails": "File Complexity Details",
+    "complexity": "Complexity",
+    "lines": "lines"
+  }
+}

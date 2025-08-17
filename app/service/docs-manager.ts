@@ -13,6 +13,7 @@ export class DocsManager {
 
   static async getDoc(projectPath: string, docName: string): Promise<string | null> {
     try {
+      console.log('--------', projectPath, docName);
       const doc = await getMarkdownDoc(projectPath, docName);
       return doc ? doc.content : null;
     } catch (error) {

@@ -3,11 +3,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, Plus, Star, Code, Calendar } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/components/ui/card';
-import { RepoSearcher } from './components/RepoSearcher';
+import { RepoSearcher } from '@/app/components/RepoSearcher';
 import { AnalysisProjectCard } from '@/app/components/AnalysisProjectCard';
+import LanguageSwitcher from '@/app/components/LanguageSwitcher';
 
 interface Project {
   id: string;
@@ -21,6 +23,8 @@ interface Project {
 }
 
 export default function Home() {
+  const t = useTranslations('HomePage');
+  const tProjectCard = useTranslations('ProjectCard');
   const [projects, setProjects] = useState<Project[]>([]);
   const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -67,7 +71,11 @@ export default function Home() {
 
   const handleViewDetails = (repositoryUrl: string) => {
     const repoUrl = new URL(repositoryUrl);
-    router.push(`/analysis/${repoUrl.pathname}`);
+    // 获取当前语言环境
+    const locale = typeof window !== 'undefined' ? window.location.pathname.split('/')[1] : 'zh-CN';
+    const isLocaleSupported = ['zh-CN', 'en'].includes(locale);
+    const prefix = isLocaleSupported ? `/${locale}` : '';
+    router.push(`${prefix}/analysis/${repoUrl.pathname.substring(1)}`);
   };
 
   const handleAnalysisSubmit = async (url: string) => {
@@ -127,10 +135,13 @@ export default function Home() {
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Header */}
         <div className="text-center mb-12 pt-8">
+          <div className="flex justify-end mb-4">
+            <LanguageSwitcher />
+          </div>
           <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4 bg-gradient-to-r from-primary to-purple-600 bg-clip-text ">
-            述义-AI代码分析
+            {t('title')}
           </h1>
-          <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto">请输入任意GitHub仓库地址</p>
+          <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto">{t('description')}</p>
         </div>
 
         {/* Search and Actions */}
@@ -145,7 +156,7 @@ export default function Home() {
         {/* Projects List */}
         {loading ? (
           <div className="text-center py-12">
-            <p className="text-muted-foreground">加载中...</p>
+            <p className="text-muted-foreground">{t('loading')}</p>
           </div>
         ) : filteredProjects.length === 0 ? (
           <div className="text-center py-12">
@@ -153,10 +164,10 @@ export default function Home() {
               <Code className="w-8 h-8 text-muted-foreground" />
             </div>
             <h3 className="text-lg font-medium text-foreground mb-2">
-              {searchTerm ? '未找到匹配的项目' : '暂无已分析的项目'}
+              {searchTerm ? t('noMatchingProjects') : t('noProjects')}
             </h3>
             <p className="text-muted-foreground">
-              {searchTerm ? '请尝试其他搜索关键词' : '开始分析您的第一个GitHub仓库'}
+              {searchTerm ? t('tryDifferentKeywords') : t('startAnalysis')}
             </p>
           </div>
         ) : (
@@ -165,7 +176,7 @@ export default function Home() {
               project.isTemporary ? (
                 <AnalysisProjectCard key={project.id} githubUrl={project.repositoryUrl} />
               ) : (
-                <ProjectCard key={project.id} project={project} onViewDetails={handleViewDetails} />
+                <ProjectCard key={project.id} project={project} onViewDetails={handleViewDetails} t={tProjectCard} />
               ),
             )}
           </div>
@@ -175,7 +186,7 @@ export default function Home() {
   );
 }
 
-function ProjectCard({ project, onViewDetails }: { project: Project; onViewDetails: (repositoryUrl: string) => void }) {
+function ProjectCard({ project, onViewDetails, t }: { project: Project; onViewDetails: (repositoryUrl: string) => void; t: any }) {
   return (
     <Card
       className="hover:shadow-lg transition-shadow duration-200 cursor-pointer"
@@ -186,7 +197,7 @@ function ProjectCard({ project, onViewDetails }: { project: Project; onViewDetai
           <span className="truncate">{project.name}</span>
           <Star className="w-4 h-4 text-yellow-500 flex-shrink-0 ml-2" />
         </CardTitle>
-        <CardDescription className="line-clamp-2">{project.description || '暂无描述'}</CardDescription>
+        <CardDescription className="line-clamp-2">{project.description || t('noDescription')}</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
@@ -196,7 +207,7 @@ function ProjectCard({ project, onViewDetails }: { project: Project; onViewDetai
           </div>
           <div className="flex items-center gap-2">
             <Star className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">{project.stars} 星标</span>
+            <span className="text-sm text-muted-foreground">{project.stars} {t('stars')}</span>
           </div>
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4 text-muted-foreground" />

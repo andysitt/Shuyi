@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { AnalysisResults } from '@/app/components/AnalysisResults';
 import { Button } from '@/app/components/ui/button';
 import { cn } from '@/app/lib/utils';
@@ -11,6 +12,7 @@ import { Badge } from '@/app/components/ui/badge';
 import { IAnalysisResult } from '@/app/lib/db-access';
 
 export default function AnalysisDetailPage() {
+  const t = useTranslations('AnalysisPage');
   const [analysisData, setAnalysisData] = useState<IAnalysisResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +37,7 @@ export default function AnalysisDetailPage() {
         throw new Error(data.error || '获取分析结果失败');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : '获取分析结果失败');
+      setError(err instanceof Error ? err.message : t('fetchFailed'));
     } finally {
       setLoading(false);
     }
@@ -46,13 +48,21 @@ export default function AnalysisDetailPage() {
   }, [fetchAnalysisData]);
 
   const handleBack = () => {
-    router.push('/');
+    // 获取当前语言环境
+    const locale = typeof window !== 'undefined' ? window.location.pathname.split('/')[1] : 'zh-CN';
+    const isLocaleSupported = ['zh-CN', 'en'].includes(locale);
+    const prefix = isLocaleSupported ? `/${locale}` : '';
+    router.push(prefix || '/');
   };
 
   const handleReanalyze = async () => {
     if (!analysisData?.repositoryUrl) return;
     try {
-      router.push(`/analyze?url=${encodeURIComponent(analysisData.repositoryUrl)}`);
+      // 获取当前语言环境
+      const locale = typeof window !== 'undefined' ? window.location.pathname.split('/')[1] : 'zh-CN';
+      const isLocaleSupported = ['zh-CN', 'en'].includes(locale);
+      const prefix = isLocaleSupported ? `/${locale}` : '';
+      router.push(`${prefix}/analyze?url=${encodeURIComponent(analysisData.repositoryUrl)}`);
     } catch (err) {
       console.error('重新分析失败:', err);
     }
@@ -71,7 +81,7 @@ export default function AnalysisDetailPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary mb-4"></div>
-          <p className="text-muted-foreground">加载分析结果中...</p>
+          <p className="text-muted-foreground">{t('loading')}</p>
         </div>
       </div>
     );
@@ -82,15 +92,15 @@ export default function AnalysisDetailPage() {
       <div className="min-h-screen flex items-center justify-center">
         <Card className="max-w-md w-full mx-4">
           <CardHeader>
-            <CardTitle className="text-center text-red-500">加载失败</CardTitle>
+            <CardTitle className="text-center text-red-500">{t('loadFailed')}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-center text-muted-foreground mb-4">{error}</p>
             <div className="flex justify-center gap-2">
               <Button onClick={fetchAnalysisData} variant="outline">
-                重试
+                {t('retry')}
               </Button>
-              <Button onClick={handleBack}>返回主页</Button>
+              <Button onClick={handleBack}>{t('backToHome')}</Button>
             </div>
           </CardContent>
         </Card>
@@ -103,11 +113,11 @@ export default function AnalysisDetailPage() {
       <div className="min-h-screen flex items-center justify-center">
         <Card className="max-w-md w-full mx-4">
           <CardHeader>
-            <CardTitle className="text-center">未找到分析结果</CardTitle>
+            <CardTitle className="text-center">{t('notFound')}</CardTitle>
           </CardHeader>
           <CardContent className="text-center">
-            <p className="text-muted-foreground mb-4">指定的分析结果不存在</p>
-            <Button onClick={handleBack}>返回主页</Button>
+            <p className="text-muted-foreground mb-4">{t('notFoundDesc')}</p>
+            <Button onClick={handleBack}>{t('backToHome')}</Button>
           </CardContent>
         </Card>
       </div>
@@ -142,15 +152,15 @@ export default function AnalysisDetailPage() {
           <div className="flex flex-shrink-0 gap-2">
             <Button onClick={handleShare} variant="outline" size="sm" className="flex items-center gap-2">
               <Share2 className="w-4 h-4" />
-              分享
+              {t('share')}
             </Button>
             <Button onClick={handleReanalyze} size="sm" className="flex items-center gap-2">
               <RefreshCw className="w-4 h-4" />
-              重新分析
+              {t('reanalyze')}
             </Button>
             <Button onClick={handleBack} variant="outline" size="sm" className="flex items-center gap-2">
               <ArrowLeft className="w-4 h-4" />
-              返回
+              {t('back')}
             </Button>
           </div>
         </div>
@@ -165,7 +175,7 @@ export default function AnalysisDetailPage() {
             <p className="text-muted-foreground text-sm">{analysisData.metadata.description}</p>
             <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
               <Clock className="w-4 h-4" />
-              <span>最后分析于: {new Date(analysisData.updatedAt).toLocaleString('zh-CN')}</span>
+              <span>{t('lastAnalyzed')}: {new Date(analysisData.updatedAt).toLocaleString('zh-CN')}</span>
               <a
                 href={`https://www.github.com/${path.join('/')}/tree/${analysisData.metadata.lastCommit?.sha || 'main'}`}
               >

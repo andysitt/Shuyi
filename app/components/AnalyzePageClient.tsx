@@ -9,6 +9,7 @@ import { Progress } from '@/app/components/ui/progress';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { RepositoryInput } from '@/app/components/RepositoryInput';
 import { Play, Square, CheckCircle, AlertCircle, Github, Clock, Activity } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 // 优化状态指示器组件
 const StatusIndicator = memo(({ icon: Icon, label, color }: { icon: any; label: string; color: string }) => (
   <div className="text-center">
@@ -65,6 +66,7 @@ const ErrorDisplay = memo(({ error }: { error: string }) => (
 ErrorDisplay.displayName = 'ErrorDisplay';
 
 export default function AnalyzePageClient() {
+  const t = useTranslations('AnalyzePage');
   const [repositoryUrl, setRepositoryUrl] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -183,7 +185,7 @@ export default function AnalyzePageClient() {
     async (url?: string) => {
       const analysisUrl = url || repositoryUrl;
       if (!analysisUrl) {
-        setError('请输入GitHub仓库URL');
+        setError(t('enterRepositoryUrl'));
         return;
       }
 
@@ -191,7 +193,7 @@ export default function AnalyzePageClient() {
         setIsAnalyzing(true);
         setError(null);
         setProgress(0);
-        setCurrentStage('初始化分析...');
+        setCurrentStage(t('initializingAnalysis'));
 
         // 启动分析
         const response = await fetch('/api/analyze', {
@@ -205,7 +207,7 @@ export default function AnalyzePageClient() {
         const data = await response.json();
 
         if (!data.success) {
-          throw new Error(data.error || '分析启动失败');
+          throw new Error(data.error || t('analysisStartFailed'));
         }
 
         // 保存分析ID用于轮询进度
@@ -214,7 +216,7 @@ export default function AnalyzePageClient() {
         // 开始轮询进度
         startProgressPolling(data.analysisId);
       } catch (err) {
-        setError(err instanceof Error ? err.message : '分析启动失败');
+        setError(err instanceof Error ? err.message : t('analysisStartFailed'));
         setIsAnalyzing(false);
       }
     },
@@ -239,7 +241,7 @@ export default function AnalyzePageClient() {
 
       setIsAnalyzing(false);
       setProgress(0);
-      setCurrentStage('已取消');
+      setCurrentStage(t('cancelled'));
     } catch (err) {
       console.error('取消分析失败:', err);
     }
@@ -267,15 +269,15 @@ export default function AnalyzePageClient() {
       ) : (
         <>
           <Play className="w-5 h-5 text-primary" />
-          开始新分析
+          {t('startNewAnalysis')}
         </>
       ),
-    [isAnalyzing],
+    [isAnalyzing, t],
   );
 
   const cardDescriptionContent = useMemo(
-    () => (isAnalyzing ? '正在分析仓库，请耐心等待...' : '输入GitHub仓库URL开始分析'),
-    [isAnalyzing],
+    () => (isAnalyzing ? t('analyzingDescription') : t('startDescription')),
+    [isAnalyzing, t],
   );
 
   const RInput = memo(({ url }: { url: string }) => (
@@ -296,9 +298,9 @@ export default function AnalyzePageClient() {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 rounded-full mb-4">
             <Github className="w-8 h-8 text-primary" />
           </div>
-          <h1 className="text-4xl font-bold text-foreground mb-4">述义-AI代码分析</h1>
+          <h1 className="text-4xl font-bold text-foreground mb-4">{t('title')}</h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            输入GitHub仓库URL，我们将为您提供全面的代码分析报告
+            {t('description')}
           </p>
         </div>
 
@@ -323,7 +325,7 @@ export default function AnalyzePageClient() {
                 <div className="flex justify-center">
                   <Button onClick={cancelAnalysis} variant="destructive" className="flex items-center gap-2">
                     <Square className="w-4 h-4" />
-                    取消分析
+{t('cancelAnalysis')}
                   </Button>
                 </div>
               </>
@@ -332,9 +334,9 @@ export default function AnalyzePageClient() {
             {/* Status Indicators */}
             {isAnalyzing && (
               <div className="grid grid-cols-3 gap-4 pt-4">
-                <StatusIndicator icon={Clock} label="准备阶段" color="blue" />
-                <StatusIndicator icon={Activity} label="分析中" color="yellow" />
-                <StatusIndicator icon={CheckCircle} label="完成" color="green" />
+                <StatusIndicator icon={Clock} label={t('status.preparing')} color="blue" />
+                <StatusIndicator icon={Activity} label={t('status.analyzing')} color="yellow" />
+                <StatusIndicator icon={CheckCircle} label={t('status.completed')} color="green" />
               </div>
             )}
 
