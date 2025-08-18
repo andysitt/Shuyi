@@ -1,17 +1,19 @@
 import { NextRequest } from 'next/server';
 import { DocsManager } from '../../service/docs-manager';
+import { Language } from '@/app/types';
 
 export async function GET(request: NextRequest, { params }: { params: { path?: string[] } }) {
   try {
+    const lang = request.nextUrl.searchParams.get('lang');
     // 解析路径参数
     if (!params.path || params.path.length < 2) {
-      return new Response('文档未找到', { status: 404 });
+      return new Response('file not found', { status: 404 });
     }
 
     // 获取文档名称（最后一个元素）并移除 .md 扩展名
     const docNameWithExt = params.path[params.path.length - 1];
     if (!docNameWithExt.endsWith('.md')) {
-      return new Response('文档未找到', { status: 404 });
+      return new Response('file not found', { status: 404 });
     }
     const docName = docNameWithExt.slice(0, -3);
 
@@ -19,10 +21,10 @@ export async function GET(request: NextRequest, { params }: { params: { path?: s
     const projectPath = params.path.slice(0, -1).join('/');
 
     // 获取文档内容
-    const content = await DocsManager.getDoc('github.com/' + projectPath, docName);
+    const content = await DocsManager.getDoc('github.com/' + projectPath, docName, lang || Language.ZH_CN);
 
     if (content === null) {
-      return new Response('文档未找到', { status: 404 });
+      return new Response('file not found', { status: 404 });
     }
 
     // 返回 Markdown 内容
@@ -33,7 +35,7 @@ export async function GET(request: NextRequest, { params }: { params: { path?: s
       },
     });
   } catch (error) {
-    console.error('获取文档时出错:', error);
-    return new Response('服务器内部错误', { status: 500 });
+    console.error('get file error:', error);
+    return new Response('get file error', { status: 500 });
   }
 }

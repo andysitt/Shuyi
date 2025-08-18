@@ -2,10 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Plus, Star, Code, Calendar } from 'lucide-react';
+import { Star, Code, Calendar } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { Button } from '@/app/components/ui/button';
-import { Input } from '@/app/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { RepoSearcher } from '@/app/components/RepoSearcher';
 import { AnalysisProjectCard } from '@/app/components/AnalysisProjectCard';
@@ -110,10 +108,11 @@ export default function Home() {
       const metadataResponse = await fetch(`/api/github/metadata?owner=${owner}&repo=${repo}`);
       const metadata = await metadataResponse.json();
 
+      const repoUrl = `https://github.com/${owner}/${repo}`;
       // Create a temporary project object
       const tempProject: Project = {
         id: 'temp-' + Date.now(), // Temporary ID
-        repositoryUrl: url,
+        repositoryUrl: repoUrl,
         name: metadata.name,
         description: metadata.description,
         stars: metadata.stars,
@@ -123,6 +122,7 @@ export default function Home() {
       };
 
       setFilteredProjects([tempProject]);
+      return repoUrl;
     } catch (error) {
       setError('An unexpected error occurred.');
     } finally {
@@ -130,8 +130,15 @@ export default function Home() {
     }
   };
 
+  let gridClassName = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6';
+  if (filteredProjects.length === 2) {
+    gridClassName = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 w-[66%] mx-auto';
+  }
+  if (filteredProjects.length === 1) {
+    gridClassName = 'grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1 gap-6 w-[33%] mx-auto';
+  }
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+    <main className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 ">
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Header */}
         <div className="text-center mb-12 pt-8">
@@ -166,12 +173,10 @@ export default function Home() {
             <h3 className="text-lg font-medium text-foreground mb-2">
               {searchTerm ? t('noMatchingProjects') : t('noProjects')}
             </h3>
-            <p className="text-muted-foreground">
-              {searchTerm ? t('tryDifferentKeywords') : t('startAnalysis')}
-            </p>
+            <p className="text-muted-foreground">{searchTerm ? t('tryDifferentKeywords') : t('startAnalysis')}</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className={gridClassName}>
             {filteredProjects.map((project) =>
               project.isTemporary ? (
                 <AnalysisProjectCard key={project.id} githubUrl={project.repositoryUrl} />
@@ -186,7 +191,15 @@ export default function Home() {
   );
 }
 
-function ProjectCard({ project, onViewDetails, t }: { project: Project; onViewDetails: (repositoryUrl: string) => void; t: any }) {
+function ProjectCard({
+  project,
+  onViewDetails,
+  t,
+}: {
+  project: Project;
+  onViewDetails: (repositoryUrl: string) => void;
+  t: any;
+}) {
   return (
     <Card
       className="hover:shadow-lg transition-shadow duration-200 cursor-pointer"
@@ -207,7 +220,9 @@ function ProjectCard({ project, onViewDetails, t }: { project: Project; onViewDe
           </div>
           <div className="flex items-center gap-2">
             <Star className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">{project.stars} {t('stars')}</span>
+            <span className="text-sm text-muted-foreground">
+              {project.stars} {t('stars')}
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4 text-muted-foreground" />

@@ -96,7 +96,7 @@ export default function AnalyzePageClient() {
         if (!repositoryUrl) return;
         const repoUrl = new URL(repositoryUrl);
         try {
-          const response = await fetch(`/api/analysis/progress/${repoUrl.pathname}`);
+          const response = await fetch(`/api/analysis/progress${repoUrl.pathname}`);
           const data = await response.json();
 
           if (data.success) {
@@ -299,9 +299,7 @@ export default function AnalyzePageClient() {
             <Github className="w-8 h-8 text-primary" />
           </div>
           <h1 className="text-4xl font-bold text-foreground mb-4">{t('title')}</h1>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            {t('description')}
-          </p>
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">{t('description')}</p>
         </div>
 
         {/* Analysis Card */}
@@ -325,7 +323,7 @@ export default function AnalyzePageClient() {
                 <div className="flex justify-center">
                   <Button onClick={cancelAnalysis} variant="destructive" className="flex items-center gap-2">
                     <Square className="w-4 h-4" />
-{t('cancelAnalysis')}
+                    {t('cancelAnalysis')}
                   </Button>
                 </div>
               </>

@@ -336,6 +336,7 @@ export async function analyzeCodeQuality(repositoryPath: string): Promise<CodeQu
     let totalComplexity = 0;
     let maxComplexity = 0;
     const securityIssues: SecurityIssue[] = [];
+    const fileContents: string[] = []; // 用于存储文件内容以进行重复分析
 
     // 遍历文件并分析复杂度
     const analyzeDirectory = async (dirPath: string) => {
@@ -367,6 +368,7 @@ export async function analyzeCodeQuality(repositoryPath: string): Promise<CodeQu
             if (codeExtensions.includes(ext)) {
               try {
                 const content = await fs.readFile(fullPath, 'utf-8');
+                fileContents.push(content); // 存储内容
                 const lines = content.split('\n');
                 const lineCount = lines.length;
 
@@ -400,7 +402,7 @@ export async function analyzeCodeQuality(repositoryPath: string): Promise<CodeQu
                 complexity += Math.floor(maxDepth / 3); // 每3层嵌套增加1点复杂度
 
                 // 限制复杂度在合理范围内
-                complexity = Math.min(complexity, 20);
+                complexity = Math.min(complexity, 200);
 
                 files.push({
                   path: path.relative(repositoryPath, fullPath),
@@ -429,8 +431,8 @@ export async function analyzeCodeQuality(repositoryPath: string): Promise<CodeQu
     // 计算平均复杂度
     const averageComplexity = files.length > 0 ? totalComplexity / files.length : 0;
 
-    // 计算重复代码（简化实现）
-    const duplication = Math.min(20, Math.floor(files.length / 10)); // 简单估算
+    // 计算重复代码
+    const duplication = calculateDuplication(fileContents);
 
     // 计算可维护性评分 (0-100)
     const maintainability = Math.max(0, 100 - averageComplexity * 5 - duplication);
@@ -439,7 +441,7 @@ export async function analyzeCodeQuality(repositoryPath: string): Promise<CodeQu
       complexity: {
         average: parseFloat(averageComplexity.toFixed(1)),
         max: maxComplexity,
-        files: files.slice(0, 10), // 只返回前10个最复杂的文件
+        files: files.sort((a, b) => b.complexity - a.complexity).slice(0, 10), // 只返回前10个最复杂的文件
       },
       duplication,
       maintainability: Math.round(maintainability),
@@ -459,6 +461,43 @@ export async function analyzeCodeQuality(repositoryPath: string): Promise<CodeQu
       securityIssues: [],
     };
   }
+}
+
+/**
+ * 计算代码重复率
+ * @param fileContents 所有文件内容组成的数组
+ * @returns 重复率百分比
+ */
+function calculateDuplication(fileContents: string[]): number {
+  const lineCounts = new Map<string, number>();
+  let totalLines = 0;
+
+  for (const content of fileContents) {
+    const lines = content.split('\n');
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      // 忽略空行和过短的行（可能是括号等），只统计有意义的代码行
+      if (trimmedLine.length > 10) {
+        totalLines++;
+        lineCounts.set(trimmedLine, (lineCounts.get(trimmedLine) || 0) + 1);
+      }
+    }
+  }
+
+  let duplicatedLines = 0;
+  Array.from(lineCounts.values()).forEach((count) => {
+    if (count > 1) {
+      // 如果一行出现了N次，那么有N行是重复的
+      duplicatedLines += count;
+    }
+  });
+
+  if (totalLines === 0) {
+    return 0;
+  }
+
+  const duplicationPercentage = (duplicatedLines / totalLines) * 100;
+  return Math.round(duplicationPercentage);
 }
 
 /**

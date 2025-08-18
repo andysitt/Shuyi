@@ -7,8 +7,8 @@ export const routing = defineRouting({
 
   // Used when no locale matches
   defaultLocale: 'zh-CN',
-  
-  localePrefix: 'as-needed' // Automatically hide the default locale prefix
+
+  localePrefix: 'as-needed', // Automatically hide the default locale prefix
 });
 
 // Lightweight wrappers around Next.js' navigation APIs

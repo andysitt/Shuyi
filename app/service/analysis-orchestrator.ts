@@ -5,6 +5,7 @@ import {
   RepositoryStructure,
   DependencyInfo,
   CodeQualityMetrics,
+  Language,
 } from '@/app/types';
 import { Agent } from '../lib/agent';
 import { PromptBuilder } from '../lib/llm-tools/prompt-builder';
@@ -95,7 +96,10 @@ export class AnalysisOrchestrator {
       onProgress?.({ stage: 'AI智能分析-制定分析计划', progress: 60 });
       const agent = new Agent(this.config.llmConfig, this.basePath);
       const plannerResult = await agent.execute({
-        actionPrompt: `请阅读当前代码库，编制出相应的文档编写计划。在此过程中你可以使用工具来进行查询项目结构、阅读代码等必要的操作。最后请输出一份Markdown格式的文档编写计划。`,
+        actionPrompt: `Please review the current codebase and compile a corresponding documentation plan. 
+        You may leverage tools during this process to perform necessary operations such as querying project structures and examining source code. 
+        Finally, output a comprehensive documentation plan in Markdown format.`,
+        // actionPrompt: `请阅读当前代码库，编制出相应的文档编写计划。在此过程中你可以使用工具来进行查询项目结构、阅读代码等必要的操作。最后请输出一份Markdown格式的文档编写计划。`,
         rolePrompt: PromptBuilder.SYSTEM_PROMPT_PLANNER,
         withEnv: true, // withEnv is important to give context to the agent
       });
@@ -109,7 +113,8 @@ export class AnalysisOrchestrator {
       onProgress?.({ stage: 'AI智能分析-分解分析任务', progress: 70 });
       console.log('------plan', plan);
       const schedulerResult = await agent.execute({
-        actionPrompt: `请根据以下文档编写计划来生成一份文档编写任务列表，以下是具体的计划
+        // actionPrompt: `请根据以下文档编写计划来生成一份文档编写任务列表，以下是具体的计划
+        actionPrompt: `Based on the following documentation plan, please generate a comprehensive list of documentation tasks. Below are the specific plan details.
 ------------------------------
 {plan}`,
         actionPromptParams: { plan },
@@ -129,20 +134,33 @@ export class AnalysisOrchestrator {
       if (Array.isArray(taskList)) {
         const repositoryUrlEncoded = repositoryUrl.replaceAll('http://', '').replaceAll('https://', '');
         taskList.unshift({
-          title: '概述',
-          goal: '对当前项目进行简要介绍',
-          outline: '按当前项目内容自由发挥',
-          targetReader: '项目的目标用户',
+          // title: 'overview',
+          // goal: '对当前项目进行简要介绍',
+          // outline: '按当前项目内容自由发挥',
+          // targetReader: '项目的目标用户',
+          title: 'Overview',
+          goal: 'Provide a concise introduction to the current project',
+          outline: "Flexibly structure based on the project's actual content",
+          targetReader: "The project's intended audience",
         });
-
+        const cnTitleList = (await this.translator(taskList.map((t) => t.title).join(','))).split(',');
         // 3. 并行执行所有文档编写任务 (使用重构后的Agent)
+        let countProgress = 0;
         const writePromises = taskList.map(async (task, index) => {
           try {
-            const result = await this.write(task);
-            await DocsManager.saveDoc(repositoryUrlEncoded, task.title.replaceAll(' ', ''), result);
+            const result = await this.writer(task);
+            const cnResult = await this.translator(result);
+            await DocsManager.saveDoc(repositoryUrlEncoded, task.title.replaceAll(' ', ''), result, Language.EN);
+            await DocsManager.saveDoc(
+              repositoryUrlEncoded,
+              cnTitleList[index].replaceAll(' ', ''),
+              cnResult,
+              Language.ZH_CN,
+            );
+            countProgress += 1;
             onProgress?.({
               stage: 'AI智能分析-编写分析文档',
-              progress: 80 + Math.floor(((index + 1) / taskList.length) * 20),
+              progress: 80 + Math.floor(((countProgress + 1) / taskList.length) * 20),
             });
             return { success: true, task };
           } catch (error) {
@@ -159,8 +177,15 @@ export class AnalysisOrchestrator {
             return `- [${doc.title}](${doc.title.replaceAll(' ', '')}.md)`;
           })
           .join('\n\n');
+        const outlineCN = cnTitleList
+          .map((title) => {
+            return `- [${title}](${title.replaceAll(' ', '')}.md)`;
+          })
+          .join('\n\n');
         const sidebar = `<!-- docs/_sidebar.md -->\n${outline}`;
-        await DocsManager.saveDoc(repositoryUrlEncoded, '_sidebar', sidebar);
+        const cnSidebar = `<!-- docs/_sidebar.md -->\n${outlineCN}`;
+        await DocsManager.saveDoc(repositoryUrlEncoded, '_sidebar', sidebar, Language.EN);
+        await DocsManager.saveDoc(repositoryUrlEncoded, '_sidebar', cnSidebar, Language.ZH_CN);
 
         await DocsManager.publishDocs(repositoryUrlEncoded);
 
@@ -179,20 +204,32 @@ export class AnalysisOrchestrator {
   }
 
   // 执行具体编写任务 - 此方法保持不变，因为它需要一个具备工具使用能力的完整Agent
-  private async write(task: { title: string; goal: string; outline: string; targetReader: string }) {
-    const actionPrompt = `结合当前仓库中的代码，根据以下要求来编写一篇文档
-    ------------------------------
-    ## 标题
-    {title}
-    ## 写作目标
-    {goal}
-    ## 大纲: 
-    \`\`\`
-    {outline}
-    \`\`\`
-    ## 目标读者
-    {targetReader}
-    `;
+  private async writer(task: { title: string; goal: string; outline: string; targetReader: string }) {
+    // const actionPrompt = `结合当前仓库中的代码，根据以下要求来编写一篇文档
+    // ------------------------------
+    // ## 标题
+    // {title}
+    // ## 写作目标
+    // {goal}
+    // ## 大纲:
+    // \`\`\`
+    // {outline}
+    // \`\`\`
+    // ## 目标读者
+    // {targetReader}
+    // `;
+    const actionPrompt = `Leverage the current repository's source code to author documentation according to the following specifications:
+-----------------------------------
+## Title
+{title}
+## Writing Objectives
+{goal}
+## Outline:
+\`\`\`
+{outline}
+\`\`\`
+## Target Audience
+{targetReader}`;
     const agent = new Agent(this.config.llmConfig, this.basePath);
     const result = await agent.execute({
       actionPrompt,
@@ -204,6 +241,33 @@ export class AnalysisOrchestrator {
     });
     if (!result.success) {
       throw new Error(`Failed to create doc ${task.title}: ${result.error}`);
+    }
+
+    const docResult = JSON.parse(result.content);
+    console.log('-----docResult', docResult);
+    return (docResult as any).document;
+  }
+
+  private async translator(content: string): Promise<string> {
+    const actionPrompt = `
+    Please translate the following content
+    -----------------------------------
+  {content}
+    `;
+    const agent = new Agent(this.config.llmConfig, this.basePath);
+    const result = await agent.execute({
+      actionPrompt,
+      actionPromptParams: { content },
+      rolePrompt: PromptBuilder.SYSTEM_PROMPT_TRANS_TO_CHINESE,
+      rolePromptParams: {
+        json: PromptBuilder.SYSTEM_PROMPT_WRITER_JSON,
+        example: PromptBuilder.SYSTEM_PROMPT_TRANS_TO_CHINESE_EXP,
+      },
+      jsonOutput: true,
+      withEnv: false,
+    });
+    if (!result.success) {
+      throw new Error(`Failed to trans doc to : ${result.error}`);
     }
 
     const docResult = JSON.parse(result.content);

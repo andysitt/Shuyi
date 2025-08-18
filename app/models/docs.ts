@@ -7,13 +7,15 @@ export async function saveMarkdownDoc(
   projectPath: string,
   docName: string,
   content: string,
+  language: string,
   isDraft: boolean = true,
 ): Promise<MarkdownDoc> {
   const markdownDoc = await prisma.markdownDoc.upsert({
     where: {
-      project_path_doc_name_is_draft: {
+      project_path_doc_name_language_is_draft: {
         project_path: projectPath,
         doc_name: docName,
+        language: language,
         is_draft: isDraft,
       },
     },
@@ -25,6 +27,7 @@ export async function saveMarkdownDoc(
       project_path: projectPath,
       doc_name: docName,
       content,
+      language,
       is_draft: isDraft,
     },
   });
@@ -34,11 +37,14 @@ export async function saveMarkdownDoc(
 export async function getMarkdownDoc(
   projectPath: string,
   docName: string,
+  language: string,
 ): Promise<MarkdownDoc | null> {
   const markdownDoc = await prisma.markdownDoc.findFirst({
     where: {
       project_path: projectPath,
       doc_name: docName,
+      language: language,
+      is_draft: false,
     },
   });
   return markdownDoc;

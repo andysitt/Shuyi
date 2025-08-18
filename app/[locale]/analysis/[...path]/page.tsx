@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/ca
 import { Github, Star, Code, ArrowLeft, RefreshCw, Share2, Clock } from 'lucide-react';
 import { Badge } from '@/app/components/ui/badge';
 import { IAnalysisResult } from '@/app/lib/db-access';
+import LanguageSwitcher from '@/app/components/LanguageSwitcher';
 
 export default function AnalysisDetailPage() {
   const t = useTranslations('AnalysisPage');
@@ -149,11 +150,12 @@ export default function AnalysisDetailPage() {
             </div>
           </div>
 
-          <div className="flex flex-shrink-0 gap-2">
-            <Button onClick={handleShare} variant="outline" size="sm" className="flex items-center gap-2">
+          <div className="flex flex-shrink-0 gap-2 justify-center items-center">
+            <LanguageSwitcher />
+            {/* <Button onClick={handleShare} variant="outline" size="sm" className="flex items-center gap-2">
               <Share2 className="w-4 h-4" />
               {t('share')}
-            </Button>
+            </Button> */}
             <Button onClick={handleReanalyze} size="sm" className="flex items-center gap-2">
               <RefreshCw className="w-4 h-4" />
               {t('reanalyze')}
@@ -175,10 +177,10 @@ export default function AnalysisDetailPage() {
             <p className="text-muted-foreground text-sm">{analysisData.metadata.description}</p>
             <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
               <Clock className="w-4 h-4" />
-              <span>{t('lastAnalyzed')}: {new Date(analysisData.updatedAt).toLocaleString('zh-CN')}</span>
-              <a
-                href={`https://www.github.com/${path.join('/')}/tree/${analysisData.metadata.lastCommit?.sha || 'main'}`}
-              >
+              <span>
+                {t('lastAnalyzed')}: {new Date(analysisData.updatedAt).toLocaleString('zh-CN')}
+              </span>
+              <a href={`https://github.com/${path.join('/')}/tree/${analysisData.metadata.lastCommit?.sha || 'main'}`}>
                 {`(${(analysisData.metadata.lastCommit?.sha || 'main').slice(0, 6)})`}
               </a>
             </div>

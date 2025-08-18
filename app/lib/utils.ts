@@ -71,14 +71,11 @@ export function getLanguageFromExtension(filename: string): string {
 }
 
 export function isValidGitHubUrl(url: string): boolean {
-  const githubUrlPattern =
-    /^(https?:\/\/)?(www\.)?github\.com\/([a-zA-Z0-9-]+)\/([a-zA-Z0-9-_.]+)(\/)?$/;
+  const githubUrlPattern = /^(https?:\/\/)?(www\.)?github\.com\/([a-zA-Z0-9-]+)\/([a-zA-Z0-9-_.]+)(\/)?$/;
   return githubUrlPattern.test(url);
 }
 
-export function extractRepoInfoFromUrl(
-  url: string,
-): { owner: string; repo: string } | null {
+export function extractRepoInfoFromUrl(url: string): { owner: string; repo: string } | null {
   const match = url.match(/github\.com\/([^\/]+)\/([^\/]+)/);
   if (match) {
     return {
@@ -89,10 +86,7 @@ export function extractRepoInfoFromUrl(
   return null;
 }
 
-export function debounce<T extends (...args: any[]) => any>(
-  func: T,
-  wait: number,
-): (...args: Parameters<T>) => void {
+export function debounce<T extends (...args: any[]) => any>(func: T, wait: number): (...args: Parameters<T>) => void {
   let timeout: NodeJS.Timeout | null = null;
 
   return (...args: Parameters<T>) => {
@@ -112,25 +106,21 @@ export function copyToClipboard(text: string): Promise<void> {
   return navigator.clipboard.writeText(text);
 }
 
-export function groupBy<T, K extends keyof any>(
-  array: T[],
-  key: (item: T) => K,
-): Record<K, T[]> {
-  return array.reduce((result, item) => {
-    const group = key(item);
-    if (!result[group]) {
-      result[group] = [];
-    }
-    result[group].push(item);
-    return result;
-  }, {} as Record<K, T[]>);
+export function groupBy<T, K extends keyof any>(array: T[], key: (item: T) => K): Record<K, T[]> {
+  return array.reduce(
+    (result, item) => {
+      const group = key(item);
+      if (!result[group]) {
+        result[group] = [];
+      }
+      result[group].push(item);
+      return result;
+    },
+    {} as Record<K, T[]>,
+  );
 }
 
-export function sortBy<T, K extends keyof T>(
-  array: T[],
-  key: K,
-  order: 'asc' | 'desc' = 'asc',
-): T[] {
+export function sortBy<T, K extends keyof T>(array: T[], key: K, order: 'asc' | 'desc' = 'asc'): T[] {
   return [...array].sort((a, b) => {
     const aVal = a[key];
     const bVal = b[key];
@@ -204,11 +194,7 @@ export const fixNumericStrings = (schema: JSONSchema): JSONSchema => {
     for (const key in schema) {
       let value = schema[key];
 
-      if (
-        numericKeywords.has(key) &&
-        typeof value === 'string' &&
-        !isNaN(Number(value))
-      ) {
+      if (numericKeywords.has(key) && typeof value === 'string' && !isNaN(Number(value))) {
         value = Number(value); // ✅ 转换为数字
       } else if (typeof value === 'object') {
         value = fixNumericStrings(value); // ✅ 递归处理
@@ -232,11 +218,7 @@ export const lowercaseType = (schema: Schema): JSONSchema => {
 
     if (key === 'type' && typeof value === 'string') {
       newSchema[key] = value.toLowerCase();
-    } else if (
-      !Array.isArray(value) &&
-      typeof value === 'object' &&
-      value !== null
-    ) {
+    } else if (!Array.isArray(value) && typeof value === 'object' && value !== null) {
       newSchema[key] = lowercaseType(value);
     }
   }

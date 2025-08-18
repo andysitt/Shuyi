@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app
 import { Button } from '@/app/components/ui/button';
 import Link from 'next/link';
 import { Star, Code, Calendar } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 interface ProjectCardProps {
   githubUrl: string;
@@ -23,6 +24,7 @@ export function AnalysisProjectCard({ githubUrl }: ProjectCardProps) {
   const [metadata, setMetadata] = useState<RepositoryMetadata | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     async function fetchAnalysisAndMetadata() {
@@ -41,7 +43,9 @@ export function AnalysisProjectCard({ githubUrl }: ProjectCardProps) {
           const match = githubUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
           if (match) {
             const [, owner, repo] = match;
-            const metadataResponse = await fetch(`/api/github/metadata?owner=${owner}&repo=${repo.replace('.git', '')}`);
+            const metadataResponse = await fetch(
+              `/api/github/metadata?owner=${owner}&repo=${repo.replace('.git', '')}`,
+            );
             if (!metadataResponse.ok) {
               throw new Error('Failed to fetch repository metadata');
             }
@@ -63,26 +67,15 @@ export function AnalysisProjectCard({ githubUrl }: ProjectCardProps) {
   }, [githubUrl]);
 
   const startAnalysis = async () => {
+    if (!githubUrl) return;
     try {
-      const response = await fetch('/api/analyze', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ repositoryUrl: githubUrl }),
-      });
-      if (!response.ok) {
-        throw new Error('Failed to start analysis');
-      }
-      const data = await response.json();
-      // Re-fetch status to show the analysis has started
-      const repoPath = new URL(githubUrl).pathname.substring(1);
-      const statusResponse = await fetch(`/api/analysis/status/${repoPath}`);
-      const statusData = await statusResponse.json();
-      setAnalysis(statusData);
+      // 获取当前语言环境
+      const locale = typeof window !== 'undefined' ? window.location.pathname.split('/')[1] : 'zh-CN';
+      const isLocaleSupported = ['zh-CN', 'en'].includes(locale);
+      const prefix = isLocaleSupported ? `/${locale}` : '';
+      router.push(`${prefix}/analyze?url=${encodeURIComponent(githubUrl)}`);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
-      setError(errorMessage);
+      console.error('跳转分析失败:', err);
     }
   };
 
@@ -98,7 +91,7 @@ export function AnalysisProjectCard({ githubUrl }: ProjectCardProps) {
     // Analyzed
     const repoPath = new URL(analysis.repository_url).pathname.substring(1);
     return (
-        <Card>
+      <Card>
         <CardHeader>
           <CardTitle>{analysis.repository_url}</CardTitle>
           <CardDescription>Project has been analyzed.</CardDescription>
@@ -119,23 +112,17 @@ export function AnalysisProjectCard({ githubUrl }: ProjectCardProps) {
             <span className="truncate">{metadata.name}</span>
             <Star className="w-4 h-4 text-yellow-500 flex-shrink-0 ml-2" />
           </CardTitle>
-          <CardDescription className="line-clamp-2">
-            {metadata.description || 'No description'}
-          </CardDescription>
+          <CardDescription className="line-clamp-2">{metadata.description || 'No description'}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Code className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">
-                {metadata.language}
-              </span>
+              <span className="text-sm text-muted-foreground">{metadata.language}</span>
             </div>
             <div className="flex items-center gap-2">
               <Star className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">
-                {metadata.stars} stars
-              </span>
+              <span className="text-sm text-muted-foreground">{metadata.stars} stars</span>
             </div>
             <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4 text-muted-foreground" />
@@ -144,7 +131,9 @@ export function AnalysisProjectCard({ githubUrl }: ProjectCardProps) {
               </span>
             </div>
           </div>
-          <Button onClick={startAnalysis} className="mt-4">Start Analysis</Button>
+          <Button onClick={startAnalysis} className="mt-4">
+            Start Analysis
+          </Button>
         </CardContent>
       </Card>
     );

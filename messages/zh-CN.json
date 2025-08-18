@@ -80,5 +80,8 @@
     "fileComplexityDetails": "文件复杂度详情",
     "complexity": "复杂度",
     "lines": "行"
+  },
+  "Docs": {
+    "overview": "概述"
   }
 }

@@ -149,7 +149,7 @@ export function AnalysisResults({ data, repoPath }: AnalysisResultsProps) {
                   <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4 text-muted-foreground" />
                     <span className="text-sm text-muted-foreground">
-                      {t('updatedAt')}: {new Date(metadata.updatedAt).toLocaleDateString('zh-CN')}
+                      {t('updatedAt')}: {new Date(metadata.updatedAt).toLocaleDateString('en-US')}
                     </span>
                   </div>
                 </div>

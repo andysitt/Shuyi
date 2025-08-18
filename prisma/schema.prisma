@@ -31,11 +31,12 @@ model MarkdownDoc {
   id           Int      @id @default(autoincrement())
   project_path String
   doc_name     String
+  language     String   @default("zh-CN")
   content      String
   is_draft     Boolean  @default(true)
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
 
-  @@unique([project_path, doc_name, is_draft])
+  @@unique([project_path, doc_name, language, is_draft])
   @@map("markdown_docs")
 }

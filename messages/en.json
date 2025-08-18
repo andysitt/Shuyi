@@ -80,5 +80,8 @@
     "fileComplexityDetails": "File Complexity Details",
     "complexity": "Complexity",
     "lines": "lines"
+  },
+  "Docs": {
+    "overview": "Overview"
   }
 }

@@ -8,7 +8,7 @@ export default function LanguageSwitcher() {
   const router = useRouter();
   const pathname = usePathname();
   const currentLocale = useLocale();
-  
+
   const toggleLanguage = () => {
     const newLocale = currentLocale === 'zh-CN' ? 'en' : 'zh-CN';
     const newPath = pathname?.replace(/^\/(zh-CN|en)/, '') || '/';
@@ -25,18 +25,56 @@ export default function LanguageSwitcher() {
         {currentLocale === 'zh-CN' ? (
           <svg xmlns="http://www.w3.org/2000/svg" width="56" height="28" viewBox="0 0 56 28" className="w-full h-full">
             <title>Language toggle: Chinese active</title>
-            <rect x="1" y="1" width="54" height="26" rx="13" fill="none" stroke="currentColor" strokeWidth="2"/>
-            <rect x="2" y="2" width="26" height="24" rx="12" fill="currentColor"/>
-            <text x="15" y="17.2" fontFamily="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" fontSize="9" textAnchor="middle" fill="#fff">中</text>
-            <text x="41" y="17.2" fontFamily="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" fontSize="8" textAnchor="middle" fill="currentColor" opacity="0.7">EN</text>
+            <rect x="1" y="1" width="54" height="26" rx="13" fill="none" stroke="currentColor" strokeWidth="2" />
+            <rect x="2" y="2" width="26" height="24" rx="12" fill="currentColor" />
+            <text
+              x="15"
+              y="17.2"
+              fontFamily="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+              fontSize="9"
+              textAnchor="middle"
+              fill="#fff"
+            >
+              中
+            </text>
+            <text
+              x="41"
+              y="17.2"
+              fontFamily="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+              fontSize="8"
+              textAnchor="middle"
+              fill="currentColor"
+              opacity="0.7"
+            >
+              EN
+            </text>
           </svg>
         ) : (
           <svg xmlns="http://www.w3.org/2000/svg" width="56" height="28" viewBox="0 0 56 28" className="w-full h-full">
             <title>Language toggle: English active</title>
-            <rect x="1" y="1" width="54" height="26" rx="13" fill="none" stroke="currentColor" strokeWidth="2"/>
-            <rect x="28" y="2" width="26" height="24" rx="12" fill="currentColor"/>
-            <text x="15" y="17.2" fontFamily="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" fontSize="9" textAnchor="middle" fill="currentColor" opacity="0.7">中</text>
-            <text x="41" y="17.2" fontFamily="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" fontSize="8" textAnchor="middle" fill="#fff">EN</text>
+            <rect x="1" y="1" width="54" height="26" rx="13" fill="none" stroke="currentColor" strokeWidth="2" />
+            <rect x="28" y="2" width="26" height="24" rx="12" fill="currentColor" />
+            <text
+              x="15"
+              y="17.2"
+              fontFamily="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+              fontSize="9"
+              textAnchor="middle"
+              fill="currentColor"
+              opacity="0.7"
+            >
+              中
+            </text>
+            <text
+              x="41"
+              y="17.2"
+              fontFamily="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+              fontSize="8"
+              textAnchor="middle"
+              fill="#fff"
+            >
+              EN
+            </text>
           </svg>
         )}
       </button>

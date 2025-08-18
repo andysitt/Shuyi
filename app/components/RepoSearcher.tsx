@@ -5,16 +5,19 @@ import { Input } from '@/app/components/ui/input';
 import { Button } from '@/app/components/ui/button';
 
 interface RepoSearcherProps {
-  onAnalysisSubmit: (url: string) => void;
+  onAnalysisSubmit: (url: string) => Promise<string | undefined>;
 }
 
 export function RepoSearcher({ onAnalysisSubmit }: RepoSearcherProps) {
   const [githubUrl, setGithubUrl] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (githubUrl) {
-      onAnalysisSubmit(githubUrl);
+      const newUrl = await onAnalysisSubmit(githubUrl);
+      if (newUrl) {
+        setGithubUrl(newUrl);
+      }
     }
   };
 
