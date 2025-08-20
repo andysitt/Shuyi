@@ -42,7 +42,7 @@ export default function AnalysisDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [path]);
+  }, [path, t]);
 
   useEffect(() => {
     fetchAnalysisData();

@@ -5,6 +5,7 @@ import '@/app/globals.css';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, setRequestLocale } from 'next-intl/server';
 
+
 export async function generateMetadata({ params: { locale } }: { params: { locale: string } }): Promise<Metadata> {
   // 设置请求的语言环境
   setRequestLocale(locale);
@@ -35,6 +36,8 @@ export async function generateMetadata({ params: { locale } }: { params: { local
   };
 }
 
+import { ThemeProvider } from '@/app/components/theme-provider';
+
 export default async function RootLayout({
   children,
   params: { locale },
@@ -46,12 +49,16 @@ export default async function RootLayout({
   setRequestLocale(locale);
 
   const messages = await getMessages();
-
   return (
-    <html lang={locale}>
+    <html lang={locale} suppressHydrationWarning>
+      <head>
+        <link rel="icon" href="/assets/icon.png" type="image/png" />
+      </head>
       <body>
         <NextIntlClientProvider locale={locale} messages={messages}>
-          <Theme className="h-[100dvh]">{children}</Theme>
+          <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+            <Theme className="h-[100dvh]">{children}</Theme>
+          </ThemeProvider>
         </NextIntlClientProvider>
       </body>
     </html>

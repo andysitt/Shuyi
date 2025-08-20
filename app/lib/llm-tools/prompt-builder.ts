@@ -149,12 +149,12 @@ Output: Documentation task array in JSON format
 **Critical**: Internal thinking in English, English output`;
 
   static readonly SYSTEM_PROMPT_SCHEDULER_JSON = `{
-  document_tasks: [
+  "document_tasks": [
     {
-      title: 'Architecture Design Documentation',
-      goal: 'Comprehensively describe system architecture, component partitioning, technology selection, and design principles to provide high-level guidance for development and maintenance',
-      outline: 'Specific outline content',
-      targetReader: 'Target audience (e.g., architects, core developers, new members)',
+      "title": "Architecture Design Documentation",
+      "goal": "Comprehensively describe system architecture, component partitioning, technology selection, and design principles to provide high-level guidance for development and maintenance",
+      "outline": "Specific outline content",
+      "targetReader": "Target audience (e.g., architects, core developers, new members)",
     },
   ],
 }`;
@@ -191,7 +191,7 @@ Output: JSON-formatted result
 **Critical**: Internal thinking in English, English output`;
 
   static readonly SYSTEM_PROMPT_WRITER_JSON = `{
-  document: 'Markdown-formatted document content',
+  "document": "Markdown-formatted document content",
 }`;
 
   /**

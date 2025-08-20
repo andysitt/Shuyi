@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Star, Code, Calendar } from 'lucide-react';
+import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { RepoSearcher } from '@/app/components/RepoSearcher';
@@ -145,9 +146,12 @@ export default function Home() {
           <div className="flex justify-end mb-4">
             <LanguageSwitcher />
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4 bg-gradient-to-r from-primary to-purple-600 bg-clip-text ">
-            {t('title')}
-          </h1>
+          <div className="flex justify-center items-center mb-4">
+                        <Image src="/assets/logo.png" alt="Shuyi Logo" width={64} height={64} className="mr-4" />
+            <h1 className="text-4xl md:text-5xl font-bold text-foreground bg-gradient-to-r from-primary to-purple-600 bg-clip-text ">
+              {t('title')}
+            </h1>
+          </div>
           <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto">{t('description')}</p>
         </div>
 

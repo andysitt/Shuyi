@@ -50,7 +50,7 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ owner, repo, docName })
         }
       }
     },
-    [owner, repo, docName],
+    [owner, repo, docName, currentLocale],
   );
 
   // Fetch sidebar only once
@@ -115,7 +115,7 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ owner, repo, docName })
     return () => {
       window.removeEventListener('popstate', handlePopState);
     };
-  }, []);
+  }, [t]);
 
   return (
     <div className="markdown-viewer">

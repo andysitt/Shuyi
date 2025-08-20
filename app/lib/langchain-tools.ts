@@ -26,9 +26,9 @@ export function wrapToolsForLangChain(toolRegistry: ToolRegistry): DynamicStruct
     const toolName = declaration.name;
 
     // Skip tools that are known to cause issues or are not needed.
-    if (toolName === 'read_many_files') {
-      continue;
-    }
+    // if (toolName === 'read_many_files') {
+    //   continue;
+    // }
 
     const originalTool = toolRegistry.getTool(toolName);
 

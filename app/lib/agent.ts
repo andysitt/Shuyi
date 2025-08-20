@@ -1,14 +1,21 @@
 import { Config, ConfigParameters, getFolderStructure, ToolRegistry } from '@google/gemini-cli-core';
 import { ChatOpenAI } from '@langchain/openai';
-import { createOpenAIToolsAgent, AgentExecutor } from 'langchain/agents';
+import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
+import { ChatAnthropic } from '@langchain/anthropic';
+import {
+  createToolCallingAgent,
+  AgentExecutor,
+  CreateToolCallingAgentParams,
+  AgentExecutorInput,
+} from 'langchain/agents';
 import { ChatPromptTemplate, MessagesPlaceholder } from '@langchain/core/prompts';
 import { AIMessage, BaseMessage, HumanMessage, ToolMessage } from '@langchain/core/messages';
 import { wrapToolsForLangChain } from './langchain-tools';
 
 // LLM配置接口
 export interface LLMConfig {
-  provider: 'openai' | 'anthropic' | 'custom';
-  apiKey: string;
+  provider: 'openai' | 'anthropic' | 'google' | 'custom';
+  apiKey: string | string[];
   model: string;
   baseURL?: string;
   maxTokens?: number;
@@ -37,10 +44,18 @@ export class Agent {
   private config: LLMConfig;
   private geminiConfig: Config;
   private repositoryPath: string;
+  private _apiKeys: string[];
+  private _apiKeyIndex: number = 0;
 
   constructor(config: LLMConfig, repositoryPath: string) {
     this.config = config;
     this.repositoryPath = repositoryPath;
+    if (Array.isArray(config.apiKey)) {
+      this._apiKeys = config.apiKey;
+    } else {
+      this._apiKeys = config.apiKey.split(',').map((k) => k.trim());
+    }
+
     const params: ConfigParameters = {
       sessionId: Date.now().toString(),
       targetDir: repositoryPath,
@@ -49,6 +64,15 @@ export class Agent {
       model: config.model, // 使用传入的model
     };
     this.geminiConfig = new Config(params);
+  }
+
+  private _getNextApiKey(): string {
+    if (this._apiKeys.length === 0) {
+      throw new Error('No API keys provided.');
+    }
+    const key = this._apiKeys[this._apiKeyIndex];
+    this._apiKeyIndex = (this._apiKeyIndex + 1) % this._apiKeys.length;
+    return key;
   }
 
   // 主要的执行方法 - 使用LangChain重构
@@ -60,6 +84,7 @@ export class Agent {
     jsonOutput = false,
     actionPromptParams = {},
     rolePromptParams = {},
+    withTools = true,
   }: {
     actionPrompt: string;
     rolePrompt: string;
@@ -68,30 +93,12 @@ export class Agent {
     history?: ChatMessage[];
     withEnv?: boolean;
     jsonOutput?: boolean;
+    withTools?: boolean;
   }): Promise<AgentResult> {
-    if (this.config.provider !== 'openai' && this.config.provider !== 'custom') {
-      throw new Error('目前只支持 OpenAI 或自定义的提供商');
-    }
-
     await this.geminiConfig.initialize();
     const toolRegistry: ToolRegistry = await this.geminiConfig.getToolRegistry();
 
     const tools = wrapToolsForLangChain(toolRegistry);
-
-    const modelKwargs: Record<string, any> = {};
-    if (jsonOutput) {
-      modelKwargs.response_format = { type: 'json_object' };
-    }
-
-    const llm = new ChatOpenAI({
-      apiKey: this.config.apiKey,
-      modelName: this.config.model,
-      temperature: this.config.temperature || 0,
-      configuration: {
-        baseURL: this.config.baseURL,
-      },
-      modelKwargs,
-    });
 
     const envPrompt = withEnv ? await this.getEnv() : '';
     const systemPromptContent = `
@@ -107,13 +114,65 @@ export class Agent {
       new MessagesPlaceholder('agent_scratchpad'),
     ]);
 
-    const agent = await createOpenAIToolsAgent({ llm, tools, prompt });
+    let llm;
 
-    const agentExecutor = new AgentExecutor({
+    switch (this.config.provider) {
+      case 'openai':
+      case 'custom':
+        const modelKwargs: Record<string, any> = {};
+        if (jsonOutput) {
+          modelKwargs.response_format = { type: 'json_object' };
+        }
+        llm = new ChatOpenAI({
+          apiKey: this._getNextApiKey(),
+          modelName: this.config.model,
+          temperature: this.config.temperature || 0,
+          configuration: {
+            baseURL: this.config.baseURL,
+          },
+          modelKwargs,
+        });
+        break;
+      case 'google':
+        llm = new ChatGoogleGenerativeAI({
+          apiKey: this._getNextApiKey(),
+          model: this.config.model,
+          maxOutputTokens: this.config.maxTokens,
+          temperature: this.config.temperature,
+        });
+        break;
+      case 'anthropic':
+        llm = new ChatAnthropic({
+          apiKey: this._getNextApiKey(),
+          modelName: this.config.model,
+          maxTokens: this.config.maxTokens,
+          temperature: this.config.temperature,
+        });
+        break;
+      default:
+        throw new Error(`Unsupported provider: ${this.config.provider}`);
+    }
+
+    const agentOptions: CreateToolCallingAgentParams = {
+      llm,
+      prompt,
+      tools: [],
+    };
+    if (withTools) {
+      agentOptions.tools = tools;
+    }
+    const agent = await createToolCallingAgent(agentOptions);
+
+    const agentExecutorOptions: AgentExecutorInput = {
       agent,
-      tools,
+      tools: [],
       verbose: true, // 在开发过程中设为true以观察agent的思考过程
-    });
+      maxIterations: 100,
+    };
+    if (withTools) {
+      agentExecutorOptions.tools = tools;
+    }
+    const agentExecutor = new AgentExecutor(agentExecutorOptions);
 
     // 将我们的历史消息格式转换为LangChain的格式
     const chatHistory = history.map((msg) => {

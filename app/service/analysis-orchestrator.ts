@@ -11,12 +11,13 @@ import { Agent } from '../lib/agent';
 import { PromptBuilder } from '../lib/llm-tools/prompt-builder';
 import { DocsManager } from './docs-manager';
 import { analyzeStructure, analyzeDependencies, analyzeCodeQuality } from './analysis-tools';
+import { progressManager } from './progress-manager';
 
 // 分析配置
 export interface AnalysisConfig {
   llmConfig: {
     provider: 'openai' | 'anthropic' | 'custom';
-    apiKey: string;
+    apiKey: string | string[];
     model: string;
     baseURL?: string;
   };
@@ -81,6 +82,9 @@ export class AnalysisOrchestrator {
       await this.performLLMAnalysis(repositoryUrl, onProgress);
       const result = this.buildFinalResult(repositoryMetadata, structure, dependencies, codeQuality, '');
       return result;
+    } catch (error) {
+      await progressManager.delete(repositoryUrl);
+      throw error;
     } finally {
       this.sessionManager.endSession(session.sessionId);
     }
@@ -121,6 +125,8 @@ export class AnalysisOrchestrator {
         rolePrompt: PromptBuilder.SYSTEM_PROMPT_SCHEDULER,
         rolePromptParams: { json: PromptBuilder.SYSTEM_PROMPT_SCHEDULER_JSON },
         jsonOutput: true, // Ensure JSON output
+        withEnv: false,
+        withTools: false,
       });
 
       if (!schedulerResult.success) {
@@ -199,6 +205,7 @@ export class AnalysisOrchestrator {
         progress: 0,
         details: e.message || '未知错误',
       });
+      await progressManager.delete(repositoryUrl);
       return false;
     }
   }
@@ -265,6 +272,7 @@ export class AnalysisOrchestrator {
       },
       jsonOutput: true,
       withEnv: false,
+      withTools: false,
     });
     if (!result.success) {
       throw new Error(`Failed to trans doc to : ${result.error}`);

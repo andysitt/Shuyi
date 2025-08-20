@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="56" height="28" viewBox="0 0 56 28" role="img" aria-label="Language toggle: Chinese active">
+  <title>Language toggle: Chinese active</title>
+  <rect x="1" y="1" width="54" height="26" rx="13" fill="none" stroke="currentColor" stroke-width="2"/>
+  <rect x="2" y="2" width="26" height="24" rx="12" fill="currentColor"/>
+  <text x="15" y="17.2" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="9" text-anchor="middle" fill="#fff">中</text>
+  <text x="41" y="17.2" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="8" text-anchor="middle" fill="currentColor" opacity="0.7">EN</text>
+</svg>

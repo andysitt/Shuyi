@@ -75,7 +75,8 @@ export default function AnalyzePageClient() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const progressInterval = useRef<NodeJS.Timeout | null>(null);
+  const eventSourceRef = useRef<(() => void) | null>(null);
+  
 
   // 使用 useMemo 优化计算值
   const isCompleted = useMemo(() => progress === 100, [progress]);
@@ -88,52 +89,52 @@ export default function AnalyzePageClient() {
 
   const startProgressPolling = useCallback(
     (id: string) => {
-      if (progressInterval.current) {
-        clearInterval(progressInterval.current);
-      }
+      if (!repositoryUrl) return () => {};
 
-      progressInterval.current = setInterval(async () => {
-        if (!repositoryUrl) return;
-        const repoUrl = new URL(repositoryUrl);
-        try {
-          const response = await fetch(`/api/analysis/progress${repoUrl.pathname}`);
-          const data = await response.json();
+      const repoUrl = new URL(repositoryUrl);
+      const eventSource = new EventSource(`/api/analysis/progress${repoUrl.pathname}`);
 
-          if (data.success) {
-            setProgress(data.progress.progress);
-            setCurrentStage(data.progress.stage);
+      eventSource.onmessage = (event) => {
+        const data = JSON.parse(event.data);
 
-            // 检查是否完成
-            if (data.progress.status === 'completed') {
-              if (progressInterval.current) {
-                clearInterval(progressInterval.current);
-              }
-              // 分析完成后，通过 repositoryUrl 查询最终的分析结果ID
-              try {
-                const res = await fetch(`/api/projects?repositoryUrl=${encodeURIComponent(repositoryUrl)}`);
-                const result = await res.json();
+        if (data.success) {
+          setProgress(data.progress.progress);
+          setCurrentStage(data.progress.stage);
+
+          if (data.progress.status === 'completed') {
+            eventSource.close();
+            // Analysis completed, fetch final result
+            fetch(`/api/projects?repositoryUrl=${encodeURIComponent(repositoryUrl)}`)
+              .then((res) => res.json())
+              .then((result) => {
                 if (result.success && result.project) {
                   const repoPath = new URL(result.project.repositoryUrl).pathname.substring(1);
                   router.push(`/analysis/${repoPath}`);
                 } else {
-                  throw new Error(result.error || '找不到分析结果');
+                  throw new Error(result.error || 'Could not find analysis results');
                 }
-              } catch (err) {
-                setError(err instanceof Error ? err.message : '获取分析结果失败');
+              })
+              .catch((err) => {
+                setError(err instanceof Error ? err.message : 'Failed to get analysis results');
                 setIsAnalyzing(false);
-              }
-            } else if (data.progress.status === 'failed') {
-              if (progressInterval.current) {
-                clearInterval(progressInterval.current);
-              }
-              setError(data.progress.details || '分析失败');
-              setIsAnalyzing(false);
-            }
+              });
+          } else if (data.progress.status === 'failed') {
+            eventSource.close();
+            setError(data.progress.details || 'Analysis failed');
+            setIsAnalyzing(false);
           }
-        } catch (err) {
-          console.error('获取进度失败:', err);
         }
-      }, 1000); // 每秒轮询一次
+      };
+
+      eventSource.onerror = (err) => {
+        console.error('EventSource failed:', err);
+        eventSource.close();
+      };
+
+      // Clean up the event source on component unmount
+      return () => {
+        eventSource.close();
+      };
     },
     [router, repositoryUrl],
   );
@@ -152,14 +153,14 @@ export default function AnalyzePageClient() {
             setIsAnalyzing(true);
             setProgress(progress);
             setCurrentStage(stage);
-            startProgressPolling(id);
+            eventSourceRef.current = startProgressPolling(id);
           }
         }
       } catch (err) {
         console.error('Failed to check analysis status:', err);
       }
     },
-    [startProgressPolling],
+    [startProgressPolling, setAnalysisId, setIsAnalyzing, setProgress, setCurrentStage],
   );
 
   // 检查是否有预填充的URL, 并检查其状态
@@ -172,14 +173,7 @@ export default function AnalyzePageClient() {
     }
   }, [searchParams, updateUrl, checkAnalysisStatus]);
 
-  // 清理定时器
-  useEffect(() => {
-    return () => {
-      if (progressInterval.current) {
-        clearInterval(progressInterval.current);
-      }
-    };
-  }, []);
+  
 
   const startAnalysis = useCallback(
     async (url?: string) => {
@@ -214,13 +208,13 @@ export default function AnalyzePageClient() {
         setAnalysisId(data.analysisId);
 
         // 开始轮询进度
-        startProgressPolling(data.analysisId);
+        eventSourceRef.current = startProgressPolling(data.analysisId);
       } catch (err) {
         setError(err instanceof Error ? err.message : t('analysisStartFailed'));
         setIsAnalyzing(false);
       }
     },
-    [repositoryUrl, startProgressPolling],
+    [repositoryUrl, startProgressPolling, t, setAnalysisId, setError, setIsAnalyzing, setProgress, setCurrentStage],
   );
 
   const cancelAnalysis = useCallback(async () => {
@@ -234,9 +228,9 @@ export default function AnalyzePageClient() {
       });
 
       // 停止轮询
-      if (progressInterval.current) {
-        clearInterval(progressInterval.current);
-        progressInterval.current = null;
+      if (eventSourceRef.current) {
+        eventSourceRef.current();
+        eventSourceRef.current = null;
       }
 
       setIsAnalyzing(false);
@@ -245,7 +239,7 @@ export default function AnalyzePageClient() {
     } catch (err) {
       console.error('取消分析失败:', err);
     }
-  }, [repositoryUrl]);
+  }, [repositoryUrl, t, setIsAnalyzing, setProgress, setCurrentStage]);
 
   const handleRepositorySubmit = useCallback(
     async (url: string) => {
@@ -255,7 +249,7 @@ export default function AnalyzePageClient() {
         await startAnalysis(url);
       }
     },
-    [startAnalysis],
+    [startAnalysis, setRepositoryUrl],
   );
 
   // 使用 useMemo 优化条件渲染的值
