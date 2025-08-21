@@ -139,7 +139,7 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ owner, repo, docName })
       </aside>
       <main ref={contentRef} className="main-content prose  dark:prose-invert relative">
         <PageNavigator headings={headings} />
-        <RenderMarkDown content={mainContent} />
+        <RenderMarkDown content={mainContent} owner={owner} repo={repo} />
       </main>
     </div>
   );
