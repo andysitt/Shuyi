@@ -166,7 +166,7 @@ export class Agent {
     const agentExecutorOptions: AgentExecutorInput = {
       agent,
       tools: [],
-      verbose: true, // 在开发过程中设为true以观察agent的思考过程
+      verbose: false, // 在开发过程中设为true以观察agent的思考过程
       maxIterations: 100,
     };
     if (withTools) {

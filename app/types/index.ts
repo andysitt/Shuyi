@@ -160,3 +160,135 @@ export enum Language {
   EN = 'en',
   ZH_CN = 'zh-CN',
 }
+
+// plan.md based types
+
+export interface RepoConfig {
+  root: string;
+  ignoreDirs: string[];
+  ignoreGlobs: string[];
+  maxFileMB: number;
+  langPriorities: string[];
+  exts: string[];
+}
+
+export interface Module {
+  path: string;
+  role: string;
+  examples: string[];
+}
+
+export interface TechStack {
+  type: 'language' | 'framework' | 'db' | 'runtime' | 'build';
+  name: string;
+  evidence: string[];
+}
+
+export interface EntryCandidate {
+  path: string;
+  why: string;
+}
+
+export interface ProjectOverview {
+  modules: Module[];
+  techStack: TechStack[];
+  entryCandidates: EntryCandidate[];
+  notes: string[];
+}
+
+export interface ModuleGraphEdge {
+  from: string;
+  to: string;
+  type: 'import' | 'runtime' | 'io';
+}
+
+export interface CallGraphEdge {
+  caller: string;
+  callee: string;
+  file: string;
+  line: number;
+}
+
+export interface Hotspot {
+  symbol: string;
+  fanIn: number;
+  fanOut: number;
+  files: string[];
+}
+
+export interface DependencyGraph {
+  moduleGraph: ModuleGraphEdge[];
+  callGraph: CallGraphEdge[];
+  hotspots: Hotspot[];
+  visual: {
+    moduleMermaid: string;
+    callMermaid: string;
+  };
+}
+
+export interface CoreFeature {
+  id: string;
+  name: string;
+  whyCore: string;
+  importance: number;
+  evidence: string[];
+  entryPoints: string[];
+  primaryModules: string[];
+  keySymbols: string[];
+}
+
+export interface CoreFeatures {
+  features: CoreFeature[];
+  rankingRule: string;
+}
+
+export interface FeatureDocIndex {
+  id: string;
+  title: string;
+  summary: string;
+  files: string[];
+  symbols: string[];
+  artifacts: {
+    type: 'md';
+    name: string;
+  }[];
+}
+
+export interface SiteIndexEntry {
+  title: string;
+  path: string;
+}
+
+export interface KnowledgeBaseEntry {
+  id: string;
+  questionLike: string[];
+  answer: string;
+  source: {
+    file: string;
+    lines: [number, number];
+  };
+}
+
+// a/service/analysis-orchestrator.ts
+// 分析配置
+export interface AnalysisConfig {
+  llmConfig: {
+    provider: 'openai' | 'anthropic' | 'custom';
+    apiKey: string | string[];
+    model: string;
+    baseURL?: string;
+    temperature?: number;
+  };
+  analysisType: 'full' | 'structure' | 'quality' | 'security' | 'documentation';
+  maxFileSize?: number;
+  maxFilesToAnalyze?: number;
+  includePatterns?: string[];
+  excludePatterns?: string[];
+}
+
+// 分析进度回调
+export interface AnalysisProgress {
+  stage: string;
+  progress: number;
+  details?: string;
+}

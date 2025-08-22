@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { GitHubClient } from '@/app/lib/github-client';
 import { AnalysisOrchestrator } from '@/app/service/analysis-orchestrator';
 import { cacheManager } from '@/app/lib/cache-manager';
-import { tempManager } from '@/app/lib/temp-manager';
+import { TempManager } from '@/app/lib/temp-manager';
 import { DatabaseAccess } from '@/app/lib/db-access';
 import { AnalysisRequest, AnalysisResult } from '@/app/types';
 import { progressManager } from '@/app/service/progress-manager';
@@ -35,6 +35,7 @@ export async function POST(request: NextRequest) {
     // 立即返回进度ID，让前端可以开始轮询
     // 使用setTimeout异步执行分析过程
     setTimeout(async () => {
+      const tempManager = new TempManager();
       try {
         await updateProgress(5, '验证仓库', '正在验证仓库有效性...');
 
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest) {
         await updateProgress(20, '克隆仓库', '正在克隆仓库...');
 
         // 创建临时目录
-        const tempDir = tempManager.createTempDirectory();
+        const tempDir = tempManager.createTempDir(`${owner}|${repo}`);
 
         try {
           // 克隆仓库
@@ -108,7 +109,7 @@ export async function POST(request: NextRequest) {
 
           const llmConfig = {
             provider: (process.env.LLM_PROVIDER || 'openai') as 'openai' | 'anthropic' | 'custom',
-            apiKey: process.env.LLM_API_KEY.split(',').map(k => k.trim()),
+            apiKey: process.env.LLM_API_KEY.split(',').map((k) => k.trim()),
             model: process.env.LLM_MODEL || 'deepseek-reasoner',
             baseURL: process.env.LLM_BASE_URL || undefined,
           };

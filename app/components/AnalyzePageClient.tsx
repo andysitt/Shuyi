@@ -76,7 +76,6 @@ export default function AnalyzePageClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const eventSourceRef = useRef<(() => void) | null>(null);
-  
 
   // 使用 useMemo 优化计算值
   const isCompleted = useMemo(() => progress === 100, [progress]);
@@ -173,8 +172,6 @@ export default function AnalyzePageClient() {
     }
   }, [searchParams, updateUrl, checkAnalysisStatus]);
 
-  
-
   const startAnalysis = useCallback(
     async (url?: string) => {
       const analysisUrl = url || repositoryUrl;
@@ -190,7 +187,9 @@ export default function AnalyzePageClient() {
         setCurrentStage(t('initializingAnalysis'));
 
         // 启动分析
-        const response = await fetch('/api/analyze', {
+        // app/api/doc-generation
+        // const response = await fetch('/api/analyze', {
+        const response = await fetch('/api/doc-generation', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

@@ -6,6 +6,8 @@ import {
   DependencyInfo,
   CodeQualityMetrics,
   Language,
+  AnalysisConfig,
+  AnalysisProgress,
 } from '@/app/types';
 import { Agent } from '../lib/agent';
 import { PromptBuilder } from '../lib/llm-tools/prompt-builder';
@@ -13,27 +15,7 @@ import { DocsManager } from './docs-manager';
 import { analyzeStructure, analyzeDependencies, analyzeCodeQuality } from './analysis-tools';
 import { progressManager } from './progress-manager';
 
-// 分析配置
-export interface AnalysisConfig {
-  llmConfig: {
-    provider: 'openai' | 'anthropic' | 'custom';
-    apiKey: string | string[];
-    model: string;
-    baseURL?: string;
-  };
-  analysisType: 'full' | 'structure' | 'quality' | 'security' | 'documentation';
-  maxFileSize?: number;
-  maxFilesToAnalyze?: number;
-  includePatterns?: string[];
-  excludePatterns?: string[];
-}
 
-// 分析进度回调
-export interface AnalysisProgress {
-  stage: string;
-  progress: number;
-  details?: string;
-}
 
 // 分析协调器
 export class AnalysisOrchestrator {
