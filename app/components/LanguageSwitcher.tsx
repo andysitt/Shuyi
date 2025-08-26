@@ -10,8 +10,8 @@ export default function LanguageSwitcher() {
   const currentLocale = useLocale();
 
   const toggleLanguage = () => {
-    const newLocale = currentLocale === 'zh-CN' ? 'en' : 'zh-CN';
-    const newPath = pathname?.replace(/^\/(zh-CN|en)/, '') || '/';
+    const newLocale = currentLocale === 'zh-CN' ? 'en-US' : 'zh-CN';
+    const newPath = pathname?.replace(/^\/(zh-CN|en-US)/, '') || '/';
     router.push(`/${newLocale}${newPath}`);
   };
 

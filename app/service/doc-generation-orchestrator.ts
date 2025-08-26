@@ -11,6 +11,7 @@ import {
   FeatureDocIndex,
   SiteIndexEntry,
   RepoConfig,
+  Language,
 } from '@/app/types';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -41,18 +42,21 @@ function safeJsonParse(str: string) {
     return JSON.parse(jsonStr);
   }
 }
-
 export class DocGenerationOrchestrator {
   private agent: Agent;
   private config: AnalysisConfig;
   private basePath: string;
+  private owner: string;
+  private repo: string;
   private repositoryUrlEncoded: string;
 
-  constructor(config: AnalysisConfig, repositoryPath: string, repositoryUrl: string) {
+  constructor(config: AnalysisConfig, repositoryPath: string, repositoryUrl: string, owner: string, repom: string) {
     this.basePath = repositoryPath;
     this.config = config;
     this.agent = new Agent(this.config.llmConfig, this.basePath);
     this.repositoryUrlEncoded = repositoryUrl.replaceAll('http://', '').replaceAll('https://', '');
+    this.owner = owner;
+    this.repo = repom;
   }
 
   public async execute(repositoryUrl: string, onProgress?: (progress: AnalysisProgress) => void): Promise<void> {
@@ -80,6 +84,32 @@ export class DocGenerationOrchestrator {
       onProgress?.({ stage: 'Assembled documentation site', progress: 100 });
 
       console.log('Documentation generation finished', siteIndex);
+
+      const docs = await DocsManager.getDocsByPathAndLang(`github.com/${this.owner}/${this.repo}`, 'en-US');
+      const cnTitles = [];
+      for (let i = 0; i < docs.length; i++) {
+        const doc = docs[i];
+        const docName = await this.translator(doc.doc_name);
+        cnTitles.push(docName);
+        const docContent = await this.translator(doc.content);
+        DocsManager.saveDoc(`github.com/${this.owner}/${this.repo}`, docName, docContent, 'zh-CN');
+      }
+
+      // 生成侧边栏
+      const outline = docs
+        .map((doc) => {
+          return `- [${doc.doc_name}](${doc.doc_name}.md)`;
+        })
+        .join('\n\n');
+      const outlineCN = cnTitles
+        .map((title) => {
+          return `- [${title}](${title}.md)`;
+        })
+        .join('\n\n');
+      const sidebar = `<!-- docs/_sidebar.md -->\n${outline}`;
+      const cnSidebar = `<!-- docs/_sidebar.md -->\n${outlineCN}`;
+      await DocsManager.saveDoc(`github.com/${this.owner}/${this.repo}`, '_sidebar', sidebar, Language.EN);
+      await DocsManager.saveDoc(`github.com/${this.owner}/${this.repo}`, '_sidebar', cnSidebar, Language.ZH_CN);
     } catch (error) {
       console.error('Error during documentation generation:', error);
       onProgress?.({ stage: 'Error', progress: 0, details: error instanceof Error ? error.message : String(error) });
@@ -120,15 +150,15 @@ export class DocGenerationOrchestrator {
 
       const result = await this.agent.execute({
         actionPrompt: `Given the repository directory and file paths, please:
-1) Generate a directory tree and output it as Markdown. Use the 'write_file' tool to save this markdown content to a file named 'tree.md'.
-2) Identify the main modules (at the directory level) and their responsibilities, explaining each in one sentence and listing representative files .
-3) Infer the technology stack (language/framework/database/message queue/build tool) and provide evidence paths.
-4) Enumerate entry candidates (e.g., main.py, index.tsx, server.ts, bin/cli, Docker CMD), each with a detection reason.
-
+1) Identify the main modules (at the directory level) and their responsibilities, explaining each in one sentence and listing representative files .
+2) Infer the technology stack (language/framework/database/message queue/build tool) and provide evidence paths.
+3) Enumerate entry candidates (e.g., main.py, index.tsx, server.ts, bin/cli, Docker CMD), each with a detection reason.
 Output the final result in JSON format:
 {OUTPUT_EXP}
-Only output JSON. Do not include the directory tree in the JSON output.`,
+Only output JSON.`,
         actionPromptParams: {
+          owner: this.owner,
+          repo: this.repo,
           OUTPUT_EXP:
             '{"modules": [{ "path": string, "role": string, "examples": string[] }],"techStack": [{ "type": "language|framework|db|runtime|build", "name": string, "evidence": string[] }],"entryCandidates": [{ "path": string, "why": string }],"notes": string[]}',
         },
@@ -231,21 +261,7 @@ Only output JSON.`,
 
       for (const feature of features.features) {
         console.log(`- Generating doc for feature: ${feature.name}`);
-        // let codeSnippets = '';
         const filesToRead = [...feature.entryPoints, ...feature.primaryModules];
-        //         for (const filePath of filesToRead) {
-        //           try {
-        //             const fullPath = path.join(this.basePath, filePath);
-        //             if (fs.existsSync(fullPath)) {
-        //               codeSnippets += `--- ${filePath} ---
-        // `;
-        //               codeSnippets += fs.readFileSync(fullPath, 'utf-8');
-        //               codeSnippets += '\n';
-        //             }
-        //           } catch (error) {
-        //             console.warn(`Could not read file ${filePath}:`, error);
-        //           }
-        //         }
         const outputFileName = `feature_${feature.id}.md`;
         const result = await this.agent.execute({
           actionPrompt: `Target feature: {FEATURE_OBJECT_FROM_TASK3}
@@ -262,12 +278,13 @@ Please produce a markdown document with the following sections:
 6) Risks and improvements: points on maintainability/performance/error handling/security.
 7) Appendix: file/symbol index table.
 
-Use the 'write_file' tool to save this markdown content to a file named '{OUTPUT_FILENAME}'.
+Please output:<content>markdown document content</content>
 
-Then, output the following index entry in JSON format:
-{OUTPUT_EXP}
-Only output JSON. Do not include the markdown content in the JSON output.`,
+Only output XML.
+`,
           actionPromptParams: {
+            owner: this.owner,
+            repo: this.repo,
             FEATURE_OBJECT_FROM_TASK3: JSON.stringify(feature, null, 2),
             CODE_SNIPPETS: JSON.stringify(filesToRead),
             KEY_SYMBOLS_OR_FUNCTIONS: JSON.stringify(feature.keySymbols),
@@ -276,16 +293,27 @@ Only output JSON. Do not include the markdown content in the JSON output.`,
           },
           rolePrompt:
             'Write in-depth documentation for engineers: clear, traceable, verifiable. Cite specific files/symbols/line numbers. Generate Mermaid sequence/call diagrams. Explain complex functions with step-by-step pseudocode. Generate a "one-sentence summary" and "notes" where necessary.',
-          jsonOutput: true,
+          jsonOutput: false,
         });
 
         if (!result.success) {
           console.error(`Failed to generate documentation for feature: ${feature.name}`);
           continue;
         }
-
-        const docIndex = safeJsonParse(result.content);
-        featureDocs.push(docIndex);
+        const fileName = feature.name.replaceAll(' ', '_');
+        DocsManager.saveDoc(
+          `github.com/${this.owner}/${this.repo}`,
+          fileName,
+          result.content.replace('<content>', '').replace('</content>', ''),
+          'en-US',
+        );
+        console.log('result:', result);
+        // const docIndex = safeJsonParse(result.content);
+        featureDocs.push({
+          id: fileName,
+          title: fileName,
+          artifacts: [{ type: 'md', name: fileName }],
+        });
       }
 
       return featureDocs;
@@ -306,20 +334,25 @@ Only output JSON. Do not include the markdown content in the JSON output.`,
 - Overview: {PROJECT_OVERVIEW_JSON}
 - Feature Index: {FEATURE_INDEX_JSON}
 
-Please generate the content for the following markdown files:
-1) A master navigation file named 'SUMMARY.md'.
-2) A glossary file named 'GLOSSARY.md'.
-3) An FAQ file named 'FAQ.md'.
+Use the 'get_doc' tool to get feature doc.
 
-Use the 'write_file' tool to save these markdown files.
+Please generate the content for the following markdown files:
+1) A master navigation file named 'SUMMARY'.
+2) A glossary file named 'GLOSSARY'.
+3) An FAQ file named 'FAQ'.
+4) Current owner name is {owner}, current repo name is {repo}.
+
+Then, use the 'save_doc' tool to save these markdown files to database, current owner name is {owner}, current repo name is {repo}.
 
 Then, output the following JSON:
 {OUTPUT_EXP}
 Only output JSON. Do not include the markdown content in the JSON output.`,
         actionPromptParams: {
+          owner: this.owner,
+          repo: this.repo,
           PROJECT_OVERVIEW_JSON: JSON.stringify(overview, null, 2),
           FEATURE_INDEX_JSON: JSON.stringify(featureDocs, null, 2),
-          OUTPUT_EXP: `{"siteIndex": [{ "title": string, "path": string }],"artifacts": [{"type":"md","name":"SUMMARY.md"},{"type":"md","name":"GLOSSARY.md"},{"type":"md","name":"FAQ.md"}]`,
+          OUTPUT_EXP: `{"siteIndex": [{ "title": string, "path": string }],"artifacts": [{"type":"md","name":"SUMMARY"},{"type":"md","name":"GLOSSARY"},{"type":"md","name":"FAQ"}]`,
         },
         rolePrompt:
           'Assemble functional documents into a "navigable" overview, and generate a glossary, FAQ, and change impact surface.',

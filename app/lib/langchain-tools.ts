@@ -61,5 +61,69 @@ export function wrapToolsForLangChain(toolRegistry: ToolRegistry): DynamicStruct
       tools.push(langChainTool);
     }
   }
+
+  const saveDocSchema = z.object({
+    owner: z.string().describe('The owner of the repository.'),
+    repo: z.string().describe('The name of the repository.'),
+    docName: z.string().describe('The name of the document to save.'),
+    locale: z
+      .string()
+      .describe(
+        "The locale of the content, specified using the IETF BCP 47 language tag format (e.g., 'en-US' for English (United States), 'zh-CN' for Simplified Chinese (China)).",
+      ),
+    content: z.string().describe('The full content of the document in Markdown format.'),
+  });
+
+  const saveDocTool = new DynamicStructuredTool({
+    name: 'save_doc',
+    description: 'Saves a documentation file to the database.',
+    schema: saveDocSchema,
+    func: async (input: zod.infer<typeof saveDocSchema>) => {
+      try {
+        const { DocsManager } = await import('../service/docs-manager');
+        const projectPath = `github.com/${input.owner}/${input.repo}`;
+        await DocsManager.saveDoc(projectPath, input.docName, input.content, 'en-US');
+        return `Document '${input.docName}' was successfully saved to ${projectPath}.`;
+      } catch (error: any) {
+        return `Error saving document: ${error.message}`;
+      }
+    },
+  });
+
+  tools.push(saveDocTool);
+
+  const getDocSchema = z.object({
+    owner: z.string().describe('The owner of the repository.'),
+    repo: z.string().describe('The name of the repository.'),
+    docName: z.string().describe('The name of the document to retrieve.'),
+    locale: z
+      .string()
+      .describe(
+        "The locale of the content, specified using the IETF BCP 47 language tag format (e.g., 'en-US' for English (United States), 'zh-CN' for Simplified Chinese (China)).",
+      ),
+  });
+
+  const getDocTool = new DynamicStructuredTool({
+    name: 'get_doc',
+    description: 'Retrieves a documentation file from the database.',
+    schema: getDocSchema,
+    func: async (input: zod.infer<typeof getDocSchema>) => {
+      try {
+        const { DocsManager } = await import('../service/docs-manager');
+        const projectPath = `github.com/${input.owner}/${input.repo}`;
+        const content = await DocsManager.getDoc(projectPath, input.docName.replace('.md', ''), 'en-US');
+        if (content) {
+          return content;
+        } else {
+          return `Document '${input.docName}' not found in ${projectPath} for locale '${input.locale}'.`;
+        }
+      } catch (error: any) {
+        return `Error retrieving document: ${error.message}`;
+      }
+    },
+  });
+
+  tools.push(getDocTool);
+
   return tools;
 }

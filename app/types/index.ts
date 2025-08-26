@@ -157,7 +157,7 @@ export interface DocumentationOptions {
 }
 
 export enum Language {
-  EN = 'en',
+  EN = 'en-US',
   ZH_CN = 'zh-CN',
 }
 
@@ -245,9 +245,9 @@ export interface CoreFeatures {
 export interface FeatureDocIndex {
   id: string;
   title: string;
-  summary: string;
-  files: string[];
-  symbols: string[];
+  summary?: string;
+  files?: string[];
+  symbols?: string[];
   artifacts: {
     type: 'md';
     name: string;

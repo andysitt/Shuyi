@@ -50,6 +50,17 @@ export async function getMarkdownDoc(
   return markdownDoc;
 }
 
+export async function getMarkdownDocsByPathAndLang(projectPath: string, lang: string): Promise<MarkdownDoc[]> {
+  const markdownDocs = await prisma.markdownDoc.findMany({
+    where: {
+      project_path: projectPath,
+      language: lang,
+      is_draft: true,
+    },
+  });
+  return markdownDocs;
+}
+
 export async function publishDocs(projectPath: string): Promise<void> {
   await prisma.$transaction(async (prisma) => {
     // Clean up old published documents

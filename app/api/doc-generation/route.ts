@@ -15,7 +15,7 @@ export async function POST(request: Request) {
         status: 'failed',
         details: validation.error,
       });
-      return;
+      return NextResponse.json({ error: validation.error }, { status: 500 });
     }
 
     const { owner, repo } = validation;
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
       analysisType: 'documentation',
     };
 
-    const orchestrator = new DocGenerationOrchestrator(config, repositoryPath, repositoryUrl);
+    const orchestrator = new DocGenerationOrchestrator(config, repositoryPath, repositoryUrl, owner!, repo!);
 
     const onProgress = (progress: AnalysisProgress) => {
       progressManager.update(repositoryUrl, progress);

@@ -1,4 +1,10 @@
-import { saveMarkdownDoc, getMarkdownDoc, publishDocs as publishDocsModel } from '../models/docs';
+import { MarkdownDoc } from '@prisma/client';
+import {
+  saveMarkdownDoc,
+  getMarkdownDoc,
+  getMarkdownDocsByPathAndLang,
+  publishDocs as publishDocsModel,
+} from '../models/docs';
 
 export class DocsManager {
   static async saveDoc(projectPath: string, docName: string, content: string, language: string): Promise<boolean> {
@@ -29,6 +35,17 @@ export class DocsManager {
     } catch (error) {
       console.error('发布文档失败:', error);
       return false;
+    }
+  }
+
+  static async getDocsByPathAndLang(projectPath: string, language: string): Promise<MarkdownDoc[]> {
+    try {
+      console.log('--------', projectPath, language);
+      const docs = await getMarkdownDocsByPathAndLang(projectPath, language);
+      return docs || [];
+    } catch (error) {
+      console.error('获取文档失败:', error);
+      return [];
     }
   }
 }
