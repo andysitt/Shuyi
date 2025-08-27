@@ -50,13 +50,13 @@ export class DocGenerationOrchestrator {
   private repo: string;
   private repositoryUrlEncoded: string;
 
-  constructor(config: AnalysisConfig, repositoryPath: string, repositoryUrl: string, owner: string, repom: string) {
+  constructor(config: AnalysisConfig, repositoryPath: string, repositoryUrl: string, owner: string, repo: string) {
     this.basePath = repositoryPath;
     this.config = config;
     this.agent = new Agent(this.config.llmConfig, this.basePath);
     this.repositoryUrlEncoded = repositoryUrl.replaceAll('http://', '').replaceAll('https://', '');
     this.owner = owner;
-    this.repo = repom;
+    this.repo = repo;
   }
 
   public async execute(repositoryUrl: string, onProgress?: (progress: AnalysisProgress) => void): Promise<void> {

@@ -8,6 +8,9 @@ import {
   Language,
   AnalysisConfig,
   AnalysisProgress,
+  ProjectOverview,
+  DependencyGraph,
+  CoreFeatures,
 } from '@/app/types';
 import { Agent } from '../lib/agent';
 import { PromptBuilder } from '../lib/llm-tools/prompt-builder';
@@ -15,18 +18,44 @@ import { DocsManager } from './docs-manager';
 import { analyzeStructure, analyzeDependencies, analyzeCodeQuality } from './analysis-tools';
 import { progressManager } from './progress-manager';
 
+function safeJsonParse(str: string) {
+  // 1. 找到第一个 "{" 和最后一个 "}"
+  const start = str.indexOf('{');
+  const end = str.lastIndexOf('}');
+  if (start === -1 || end === -1 || start >= end) {
+    console.log('=========================json parse failed:', str);
+    throw new Error('输入中找不到合法的 JSON 包裹符号 { ... }');
+  }
 
+  // 2. 裁剪出 JSON 主体
+  let jsonStr = str.slice(start, end + 1);
+
+  // // 3. 替换未转义的换行符
+  // jsonStr = jsonStr.replace(/(?<!\\)\r?\n/g, '\\n');
+
+  // 4. 尝试解析
+  try {
+    // 第一次尝试
+    return JSON.parse(jsonStr);
+  } catch (e) {
+    // 记录下失败的数据
+    console.log('=========================json parse failed:', jsonStr);
+    // const fixed = str.replace(/(?<!\\)?/g, '\\n');
+    return JSON.parse(jsonStr);
+  }
+}
 
 // 分析协调器
 export class AnalysisOrchestrator {
   private sessionManager: SessionManager;
   private config: AnalysisConfig;
   private basePath: string;
-
+  private agent: Agent;
   constructor(config: AnalysisConfig, repositoryPath: string) {
     this.basePath = repositoryPath;
     this.config = config;
     this.sessionManager = new SessionManager(repositoryPath);
+    this.agent = new Agent(this.config.llmConfig, this.basePath);
   }
 
   // 结构分析方法
@@ -72,21 +101,137 @@ export class AnalysisOrchestrator {
     }
   }
 
+  private async runTask1_generateOverview(): Promise<ProjectOverview> {
+    try {
+      console.log('Running Task 1: Generate Project Overview');
+      const result = await this.agent.execute({
+        actionPrompt: `Given the repository directory and file paths, please:
+1) Identify the main modules (at the directory level) and their responsibilities, explaining each in one sentence and listing representative files .
+2) Infer the technology stack (language/framework/database/message queue/build tool) and provide evidence paths.
+3) Enumerate entry candidates (e.g., main.py, index.tsx, server.ts, bin/cli, Docker CMD), each with a detection reason.
+Output the final result in JSON format:
+{OUTPUT_EXP}
+Only output JSON.`,
+        actionPromptParams: {
+          OUTPUT_EXP:
+            '{"modules": [{ "path": string, "role": string, "examples": string[] }],"techStack": [{ "type": "language|framework|db|runtime|build", "name": string, "evidence": string[] }],"entryCandidates": [{ "path": string, "why": string }],"notes": string[]}',
+        },
+        rolePrompt:
+          'You will extract "structure → responsibilities → tech stack → entry candidates" from file lists and path patterns. Do not recite source code, only output conclusions and evidence (file paths/names).',
+        jsonOutput: true,
+        withEnv: true,
+        withTools: true,
+      });
+
+      if (!result.success) {
+        throw new Error('Agent failed to generate project overview');
+      }
+
+      const overview = safeJsonParse(result.content);
+
+      return overview;
+    } catch (error) {
+      console.error('Error in runTask1_generateOverview:', error);
+      throw new Error(`Task 1 failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  private async runTask2_analyzeDependencies(overview: ProjectOverview): Promise<DependencyGraph> {
+    try {
+      console.log('Running Task 2: Analyze Dependencies');
+      const result = await this.agent.execute({
+        actionPrompt: `Based on the following information, build the dependency/call relationships:
+- Project Overview: {PROJECT_OVERVIEW_JSON}
+
+Please output:
+{OUTPUT_EXP}
+Note:
+- hotspots: Identify by fan-in + fan-out (the higher, the more core).
+**Only output JSON.**`,
+        actionPromptParams: {
+          PROJECT_OVERVIEW_JSON: JSON.stringify(overview, null, 2),
+          OUTPUT_EXP:
+            '{"moduleGraph": [{ "from": string, "to": string, "type": "import|runtime|io" }],"callGraph": [{ "caller": string, "callee": string, "file": string, "line": number }],"hotspots": [{ "symbol": string, "fanIn": number, "fanOut": number, "files": string[] }]}',
+        },
+        rolePrompt: 'You will construct dependency/call relationships from the provided information.',
+        jsonOutput: true,
+        withEnv: true,
+        withTools: true,
+      });
+
+      if (!result.success) {
+        throw new Error('Agent failed to analyze dependencies');
+      }
+
+      return safeJsonParse(result.content);
+    } catch (error) {
+      console.error('Error in runTask2_analyzeDependencies:', error);
+      throw new Error(`Task 2 failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  private async runTask3_identifyCoreFeatures(
+    overview: ProjectOverview,
+    dependencies: DependencyGraph,
+  ): Promise<CoreFeatures> {
+    try {
+      console.log('Running Task 3: Identify Core Features');
+      const result = await this.agent.execute({
+        actionPrompt: `Please identify the "Core Features" of the project and score each feature and list the evidence. The following clues can be used:
+- Entry points and startup process: {ENTRY_CANDIDATES_FROM_OVERVIEW}
+- Module responsibilities: {MODULES_FROM_OVERVIEW}
+- Call/dependency hotspots: {HOTSPOTS_FROM_DEPGRAPH}
+
+Output:
+{OUTPUT_EXP}
+Only output JSON.`,
+        actionPromptParams: {
+          ENTRY_CANDIDATES_FROM_OVERVIEW: JSON.stringify(overview.entryCandidates, null, 2),
+          MODULES_FROM_OVERVIEW: JSON.stringify(overview.modules, null, 2),
+          HOTSPOTS_FROM_DEPGRAPH: JSON.stringify(dependencies.hotspots, null, 2),
+          OUTPUT_EXP: `{ "features": [{ "id": string,"name": string,"whyCore": string,"importance": number,"evidence": string[],"entryPoints": string[],"primaryModules": string[],"keySymbols": string[]}],"rankingRule": "importance desc, then evidence count desc"}`,
+        },
+        rolePrompt:
+          'Infer "core features" (feature domain/use case level) from the given results; prioritize signals such as entry points, routes, services/use cases, and hot nodes. Output an executable "feature-level" checklist, do not generalize to "tools/libraries".',
+        jsonOutput: true,
+      });
+
+      if (!result.success) {
+        throw new Error('Agent failed to identify core features');
+      }
+
+      return safeJsonParse(result.content);
+    } catch (error) {
+      console.error('Error in runTask3_identifyCoreFeatures:', error);
+      throw new Error(`Task 3 failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
   // 执行LLM智能分析 - 使用LangChain Chain重构
   private async performLLMAnalysis(
     repositoryUrl: string,
     onProgress?: (progress: AnalysisProgress) => void,
   ): Promise<boolean> {
     try {
+      onProgress?.({ stage: 'AI智能分析-生成项目概览', progress: 30 });
+      const overview = await this.runTask1_generateOverview();
+      onProgress?.({ stage: 'AI智能分析-分析项目依赖', progress: 40 });
+      const dependencies = await this.runTask2_analyzeDependencies(overview);
+      onProgress?.({ stage: 'AI智能分析-识别核心功能', progress: 50 });
+      const features = await this.runTask3_identifyCoreFeatures(overview, dependencies);
       // 1. 创建计划 (使用Agent)
       onProgress?.({ stage: 'AI智能分析-制定分析计划', progress: 60 });
       const agent = new Agent(this.config.llmConfig, this.basePath);
       const plannerResult = await agent.execute({
         actionPrompt: `Please review the current codebase and compile a corresponding documentation plan. 
-        You may leverage tools during this process to perform necessary operations such as querying project structures and examining source code. 
-        Finally, output a comprehensive documentation plan in Markdown format.`,
-        // actionPrompt: `请阅读当前代码库，编制出相应的文档编写计划。在此过程中你可以使用工具来进行查询项目结构、阅读代码等必要的操作。最后请输出一份Markdown格式的文档编写计划。`,
+        You may leverage tools during this process to perform necessary operations such as querying project structures and examining source code.`,
         rolePrompt: PromptBuilder.SYSTEM_PROMPT_PLANNER,
+        rolePromptParams: {
+          Project_Overview: JSON.stringify(overview),
+          DependencyGraph: JSON.stringify(dependencies),
+          CoreFeatures: JSON.stringify(features),
+          Output_Example: PromptBuilder.SYSTEM_PROMPT_SCHEDULER_JSON,
+        },
         withEnv: true, // withEnv is important to give context to the agent
       });
 
@@ -219,8 +364,8 @@ export class AnalysisOrchestrator {
 \`\`\`
 ## Target Audience
 {targetReader}`;
-    const agent = new Agent(this.config.llmConfig, this.basePath);
-    const result = await agent.execute({
+
+    const result = await this.agent.execute({
       actionPrompt,
       actionPromptParams: { ...task },
       rolePrompt: PromptBuilder.SYSTEM_PROMPT_WRITER,

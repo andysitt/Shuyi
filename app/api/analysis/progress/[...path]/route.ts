@@ -13,16 +13,21 @@ export async function GET(request: Request, { params }: { params: { path: string
   const stream = new ReadableStream({
     async start(controller) {
       const encoder = new TextEncoder();
-
+      let closed = false;
       const sendProgress = async () => {
         try {
           const progress = await progressManager.get(fullUrl);
           if (progress) {
             const data = `data: ${JSON.stringify({ success: true, progress })}\n\n`;
-            controller.enqueue(encoder.encode(data));
+            if (!closed) {
+              controller.enqueue(encoder.encode(data));
+            } else {
+              return true;
+            }
 
             if (progress.status === 'completed' || progress.status === 'failed') {
               controller.close();
+              closed = true;
               return true; // Stop polling
             }
           }
@@ -31,6 +36,7 @@ export async function GET(request: Request, { params }: { params: { path: string
           const data = `data: ${JSON.stringify({ success: false, error: 'Failed to get analysis progress' })}\n\n`;
           controller.enqueue(encoder.encode(data));
           controller.close();
+          closed = true;
           return true; // Stop polling
         }
         return false; // Continue polling
@@ -56,7 +62,7 @@ export async function GET(request: Request, { params }: { params: { path: string
   return new Response(stream, {
     headers: {
       'Content-Type': 'text/event-stream',
-      'Connection': 'keep-alive',
+      Connection: 'keep-alive',
       'Cache-Control': 'no-cache',
     },
   });

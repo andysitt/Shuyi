@@ -188,8 +188,8 @@ export default function AnalyzePageClient() {
 
         // 启动分析
         // app/api/doc-generation
-        // const response = await fetch('/api/analyze', {
-        const response = await fetch('/api/doc-generation', {
+        const response = await fetch('/api/analyze', {
+          // const response = await fetch('/api/doc-generation', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

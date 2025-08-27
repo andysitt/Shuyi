@@ -120,18 +120,32 @@ export class PromptBuilder {
   //     document: 'markdown 格式的文档内容',
   //   }`;
 
-  static readonly SYSTEM_PROMPT_PLANNER = `As a professional software architect and technical analyst, you excel at formulating documentation plans for comprehensive project analysis and recording. Your task is to develop detailed documentation strategies based on user-provided project context or code. With extensive software engineering expertise covering technical architecture, business processes, system design, development standards, and industry best practices, you will create systematic plans tailored to project characteristics, defining objectives, content structures, and writing procedures for each document.
+  //   static readonly SYSTEM_PROMPT_PLANNER = `As a professional software architect and technical analyst, you excel at formulating documentation plans for comprehensive project analysis and recording. Your task is to develop detailed documentation strategies based on user-provided project context or code. With extensive software engineering expertise covering technical architecture, business processes, system design, development standards, and industry best practices, you will create systematic plans tailored to project characteristics, defining objectives, content structures, and writing procedures for each document.
 
-Generation requirements:
-1. **Project Requirement Analysis**: Identify key domains (e.g., technical architecture, business logic, development processes, testing strategies) requiring documentation based on provided context (code, descriptions, functional requirements)
-2. **Documentation Inventory**: Plan required document types (e.g., architecture design documents, business process documentation, API specifications, operational manuals), defining precise objectives for each
-3. **Content Outlines**: Provide detailed outline structures for each document type, specifying recommended sections, topics, and content details (e.g., introduction, overview, technical specifics, diagram annotations)
-4. **Documentation Roadmap**: Establish prioritization and timeline for documentation development, including authoring procedures, personnel allocation guidance, and recommended formats/tools (e.g., Markdown, UML)
-5. **Quality Standards**: Recommend documentation best practices and quality criteria ensuring clarity, coherence, professionalism, and maintainability
+  // Generation requirements:
+  // 1. **Project Requirement Analysis**: Identify key domains (e.g., technical architecture, business logic, development processes, testing strategies) requiring documentation based on provided context (code, descriptions, functional requirements)
+  // 2. **Documentation Inventory**: Plan required document types (e.g., architecture design documents, business process documentation, API specifications, operational manuals), defining precise objectives for each
+  // 3. **Content Outlines**: Provide detailed outline structures for each document type, specifying recommended sections, topics, and content details (e.g., introduction, overview, technical specifics, diagram annotations)
+  // 4. **Documentation Roadmap**: Establish prioritization and timeline for documentation development, including authoring procedures, personnel allocation guidance, and recommended formats/tools (e.g., Markdown, UML)
+  // 5. **Quality Standards**: Recommend documentation best practices and quality criteria ensuring clarity, coherence, professionalism, and maintainability
 
-Input: User-provided project description, code snippets, or objectives
-Output: Comprehensive documentation plan including inventory, content outlines, implementation procedures, and recommendations
-**Critical**: Internal thinking in English, Chinese output`;
+  // Input: User-provided project description, code snippets, or objectives
+  // Output: Comprehensive documentation plan including inventory, content outlines, implementation procedures, and recommendations
+  // **Critical**: Internal thinking in English, Chinese output`;
+
+  static readonly SYSTEM_PROMPT_PLANNER = `You are an experienced technical writer tasked with creating a comprehensive documentation plan for a software project. The user has provided the following structured information as input:
+
+- Project Overview : {Project_Overview}
+
+- Dependency/call relationships: {DependencyGraph}
+
+- Core Features Identification: {CoreFeatures}
+
+Additionally, you can access tools to gather more project details if needed.
+
+Based on this input, your task is to generate a documentation plan. The output must be a JSON object containing an array named document_tasks. Each task is an object with the following fields:
+
+Output Format Example: {Output_Example}`;
 
   static readonly SYSTEM_PROMPT_SCHEDULER = `As a documentation project manager and task scheduling specialist, you excel at planning based on documentation blueprints.
 
@@ -145,8 +159,7 @@ Execute the following based on input documentation plans (containing inventory, 
 
 Input: Comprehensive documentation plan  
 Output: Documentation task array in JSON format
-**Critical**: Output JSON task array exclusively without additional content
-**Critical**: Internal thinking in English, English output`;
+**Critical**: Output JSON task array exclusively without additional content`;
 
   static readonly SYSTEM_PROMPT_SCHEDULER_JSON = `{
   "document_tasks": [
@@ -187,8 +200,7 @@ Workflow:
 
 Input: Documentation objectives, outline structure, project context (code, requirements)  
 Output: JSON-formatted result
-**Critical**: Output JSON result exclusively without supplementary content
-**Critical**: Internal thinking in English, English output`;
+**Critical**: Output JSON result exclusively without supplementary content`;
 
   static readonly SYSTEM_PROMPT_WRITER_JSON = `{
   "document": "Markdown-formatted document content",
