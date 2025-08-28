@@ -101,6 +101,56 @@ export class DatabaseAccess {
     return this.mapAnalysisResult(analysisResult);
   }
 
+  // 新增方法：只获取项目列表需要的字段
+  static async getAnalysisResultsForProjectList(): Promise<
+    Pick<IAnalysisResult, 'id' | 'repositoryUrl' | 'metadata' | 'createdAt'>[]
+  > {
+    const analysisResults = await prisma.analysisResult.findMany({
+      select: {
+        id: true,
+        repository_url: true,
+        metadata: true,
+        created_at: true,
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+    });
+
+    return analysisResults.map((row) => ({
+      id: row.id,
+      repositoryUrl: row.repository_url,
+      metadata: row.metadata as unknown as RepositoryMetadata,
+      createdAt: row.created_at,
+    }));
+  }
+
+  // 新增方法：只获取单个项目需要的字段
+  static async getAnalysisResultForProject(
+    repositoryUrl: string,
+  ): Promise<Pick<IAnalysisResult, 'id' | 'repositoryUrl' | 'metadata' | 'createdAt'> | null> {
+    const analysisResult = await prisma.analysisResult.findUnique({
+      where: { repository_url: repositoryUrl },
+      select: {
+        id: true,
+        repository_url: true,
+        metadata: true,
+        created_at: true,
+      },
+    });
+
+    if (!analysisResult) {
+      return null;
+    }
+
+    return {
+      id: analysisResult.id,
+      repositoryUrl: analysisResult.repository_url,
+      metadata: analysisResult.metadata as unknown as RepositoryMetadata,
+      createdAt: analysisResult.created_at,
+    };
+  }
+
   static async getAnalysisResultById(
     id: number,
   ): Promise<IAnalysisResult | null> {
@@ -131,10 +181,10 @@ export class DatabaseAccess {
       repositoryUrl: row.repository_url,
       owner: row.owner,
       repo: row.repo,
-      metadata: row.metadata,
-      structure: row.structure,
-      dependencies: row.dependencies,
-      codeQuality: row.code_quality,
+      metadata: row.metadata as unknown as RepositoryMetadata,
+      structure: row.structure as unknown as RepositoryStructure,
+      dependencies: row.dependencies as unknown as DependencyInfo[],
+      codeQuality: row.code_quality as unknown as CodeQualityMetrics,
       llmInsights: row.llm_insights,
       createdAt: row.created_at,
       updatedAt: row.updated_at,

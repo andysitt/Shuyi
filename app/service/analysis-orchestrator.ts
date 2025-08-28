@@ -186,14 +186,14 @@ Only output JSON.`,
     onProgress?: (progress: AnalysisProgress) => void,
   ): Promise<boolean> {
     try {
-      onProgress?.({ stage: 'AI智能分析-生成项目概览', progress: 30 });
+      onProgress?.({ stage: 'generatingOverview', progress: 30 });
       const overview = await this.runTask1_generateOverview();
-      onProgress?.({ stage: 'AI智能分析-分析项目依赖', progress: 40 });
+      onProgress?.({ stage: 'analyzingDependencies', progress: 40 });
       const dependencies = await this.runTask2_analyzeDependencies(overview);
-      onProgress?.({ stage: 'AI智能分析-识别核心功能', progress: 50 });
+      onProgress?.({ stage: 'identifyingCoreFeatures', progress: 50 });
       const features = await this.runTask3_identifyCoreFeatures(overview, dependencies);
       // 1. 创建计划 (使用Agent)
-      onProgress?.({ stage: 'AI智能分析-制定分析计划', progress: 60 });
+      onProgress?.({ stage: 'creatingAnalysisPlan', progress: 60 });
       const agent = new Agent(this.config.llmConfig, this.basePath);
       const plannerResult = await agent.execute({
         actionPrompt: `Please review the current codebase and compile a corresponding documentation plan. 
@@ -215,7 +215,7 @@ Only output JSON.`,
       const plan = plannerResult.content;
       console.log('------plan', plan);
       //       // 2. 创建任务调度链
-      //       onProgress?.({ stage: 'AI智能分析-分解分析任务', progress: 70 });
+      //       onProgress?.({ stage: 'schedulingTasks', progress: 70 });
       //       console.log('------plan', plan);
       //       const schedulerResult = await agent.execute({
       //         // actionPrompt: `请根据以下文档编写计划来生成一份文档编写任务列表，以下是具体的计划
@@ -263,12 +263,12 @@ Only output JSON.`,
             );
             countProgress += 1;
             onProgress?.({
-              stage: 'AI智能分析-编写分析文档',
+              stage: 'writingAnalysisDocs',
               progress: 70 + Math.floor(((countProgress + 1) / taskList.length) * 30),
             });
             return { success: true, task };
           } catch (error) {
-            console.error(`AI智能分析-编写文档 "${task.title}" 失败:`, error);
+            console.error(`writingDocFailed "${task.title}" failed:`, error);
             return { success: false, task, error };
           }
         });

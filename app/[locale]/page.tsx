@@ -147,7 +147,7 @@ export default function Home() {
             <LanguageSwitcher />
           </div>
           <div className="flex justify-center items-center mb-4">
-                        <Image src="/assets/logo.png" alt="Shuyi Logo" width={64} height={64} className="mr-4" />
+            <Image src="/assets/logo.png" alt="Shuyi Logo" width={90} height={72} className="mr-2" />
             <h1 className="text-4xl md:text-5xl font-bold text-foreground bg-gradient-to-r from-primary to-purple-600 bg-clip-text ">
               {t('title')}
             </h1>

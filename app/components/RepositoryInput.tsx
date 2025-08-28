@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Loader2, Github, Search, AlertCircle } from 'lucide-react';
 import { isValidGitHubUrl } from '@/app/lib/utils';
 import { Button } from '@/app/components/ui/button';
@@ -18,6 +19,7 @@ interface RepositoryInputProps {
 }
 
 export function RepositoryInput({ onRepositorySubmit, loading, error, defaultUrl }: RepositoryInputProps) {
+  const t = useTranslations('RepositoryInput');
   const [url, setUrl] = useState(defaultUrl);
   const [validationError, setValidationError] = useState('');
 
@@ -26,12 +28,12 @@ export function RepositoryInput({ onRepositorySubmit, loading, error, defaultUrl
     setValidationError('');
 
     if (!(url || '').trim()) {
-      setValidationError('请输入GitHub仓库URL');
+      setValidationError(t('enterUrl'));
       return;
     }
 
     if (!isValidGitHubUrl(url || '')) {
-      setValidationError('请输入有效的GitHub仓库URL');
+      setValidationError(t('invalidUrl'));
       return;
     }
 
@@ -44,7 +46,7 @@ export function RepositoryInput({ onRepositorySubmit, loading, error, defaultUrl
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="repository-url" className="text-sm font-medium">
-              GitHub仓库URL
+              {t('label')}
             </Label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -55,7 +57,7 @@ export function RepositoryInput({ onRepositorySubmit, loading, error, defaultUrl
                 type="url"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://github.com/owner/repository"
+                placeholder={t('placeholder')}
                 className="pl-10"
                 disabled={loading}
               />
@@ -76,19 +78,19 @@ export function RepositoryInput({ onRepositorySubmit, loading, error, defaultUrl
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                分析中...
+                {t('analyzing')}
               </>
             ) : (
               <>
                 <Search className="mr-2 h-4 w-4" />
-                开始分析
+                {t('startAnalysis')}
               </>
             )}
           </Button>
         </form>
 
         <div className="text-center space-y-2">
-          <p className="text-sm text-muted-foreground">支持公共GitHub仓库，例如：</p>
+          <p className="text-sm text-muted-foreground">{t('supportedRepos')}</p>
           <div className="flex flex-wrap gap-2 justify-center">
             <Badge variant="outline" className="text-xs">
               https://github.com/facebook/react

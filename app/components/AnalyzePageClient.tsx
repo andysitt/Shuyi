@@ -34,15 +34,20 @@ const StatusIndicator = memo(({ icon: Icon, label, color }: { icon: any; label: 
 StatusIndicator.displayName = 'StatusIndicator';
 
 // 优化进度显示组件
-const ProgressDisplay = memo(({ currentStage, progress }: { currentStage: string; progress: number }) => (
-  <div className="space-y-4">
-    <div className="flex justify-between items-center">
-      <span className="text-sm font-medium text-muted-foreground">{currentStage}</span>
-      <span className="text-sm font-medium">{Math.round(progress)}%</span>
+const ProgressDisplay = memo(({ currentStage, progress, tProgress }: { currentStage: string; progress: number; tProgress: (key: string) => string }) => {
+  // 如果 currentStage 是一个国际化键值，则使用翻译函数，否则直接显示
+  const displayStage = tProgress(currentStage) || currentStage;
+  
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <span className="text-sm font-medium text-muted-foreground">{displayStage}</span>
+        <span className="text-sm font-medium">{Math.round(progress)}%</span>
+      </div>
+      <Progress value={progress} className="h-3" />
     </div>
-    <Progress value={progress} className="h-3" />
-  </div>
-));
+  );
+});
 ProgressDisplay.displayName = 'ProgressDisplay';
 
 // 优化仓库信息显示组件
@@ -67,10 +72,11 @@ ErrorDisplay.displayName = 'ErrorDisplay';
 
 export default function AnalyzePageClient() {
   const t = useTranslations('AnalyzePage');
+  const tProgress = useTranslations('analysisProgress');
   const [repositoryUrl, setRepositoryUrl] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [currentStage, setCurrentStage] = useState('准备开始');
+  const [currentStage, setCurrentStage] = useState('initializingAnalysis');
   const [analysisId, setAnalysisId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -257,7 +263,7 @@ export default function AnalyzePageClient() {
       isAnalyzing ? (
         <>
           <Activity className="w-5 h-5 text-primary animate-pulse" />
-          分析进行中
+          {t('analyzing')}
         </>
       ) : (
         <>
@@ -307,7 +313,7 @@ export default function AnalyzePageClient() {
             ) : (
               <>
                 {/* Progress Display */}
-                <ProgressDisplay currentStage={currentStage} progress={progressPercentage} />
+                <ProgressDisplay currentStage={currentStage} progress={progressPercentage} tProgress={tProgress} />
 
                 {/* Repository Info */}
                 <RepositoryInfo repositoryUrl={repositoryUrl} />

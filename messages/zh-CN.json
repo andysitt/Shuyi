@@ -8,7 +8,7 @@
     "switchLanguage": "切换语言"
   },
   "HomePage": {
-    "title": "述义-AI代码分析",
+    "title": "-AI代码文档生成",
     "description": "使用AI技术深入分析GitHub仓库结构、代码质量和架构模式，并生成文档",
     "analyzeButton": "开始分析",
     "searchPlaceholder": "请输入GitHub仓库地址",
@@ -18,12 +18,17 @@
     "noMatchingProjects": "未找到匹配的项目",
     "tryDifferentKeywords": "请尝试其他搜索关键词"
   },
-  "ProjectCard": {
-    "stars": "星标",
-    "noDescription": "暂无描述"
+  "RepositoryInput": {
+    "label": "GitHub仓库URL",
+    "placeholder": "https://github.com/owner/repository",
+    "enterUrl": "请输入GitHub仓库URL",
+    "invalidUrl": "请输入有效的GitHub仓库URL",
+    "startAnalysis": "开始分析",
+    "analyzing": "分析中...",
+    "supportedRepos": "支持公共GitHub仓库，例如："
   },
   "AnalyzePage": {
-    "title": "述义-AI代码分析",
+    "title": "述义-AI代码文档生成",
     "description": "输入GitHub仓库URL，我们将为您提供全面的代码分析报告",
     "startNewAnalysis": "开始新分析",
     "analyzing": "分析进行中",
@@ -39,6 +44,15 @@
       "analyzing": "分析中",
       "completed": "完成"
     }
+  },
+  "analysisProgress": {
+    "generatingOverview": "AI智能分析-生成项目概览",
+    "analyzingDependencies": "AI智能分析-分析项目依赖",
+    "identifyingCoreFeatures": "AI智能分析-识别核心功能",
+    "creatingAnalysisPlan": "AI智能分析-制定分析计划",
+    "writingAnalysisDocs": "AI智能分析-编写分析文档",
+    "writingDocFailed": "AI智能分析-编写文档失败",
+    "schedulingTasks": "AI智能分析-分解分析任务"
   },
   "AnalysisPage": {
     "loading": "加载分析结果中...",

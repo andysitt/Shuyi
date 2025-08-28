@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
 
     if (repositoryUrl) {
       // Get a single analysis result by repositoryUrl
-      const result = await DatabaseAccess.getAnalysisResult(repositoryUrl);
+      const result = await DatabaseAccess.getAnalysisResultForProject(repositoryUrl);
 
       if (!result) {
         return NextResponse.json({ success: false, error: '项目未找到' }, { status: 404 });
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
       });
     } else {
       // Get all analysis results
-      const results = await DatabaseAccess.getAllAnalysisResults();
+      const results = await DatabaseAccess.getAnalysisResultsForProjectList();
 
       // Transform data format
       const projects = results.map((result) => ({

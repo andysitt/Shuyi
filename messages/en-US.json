@@ -18,9 +18,14 @@
     "noMatchingProjects": "No matching projects found",
     "tryDifferentKeywords": "Please try different search keywords"
   },
-  "ProjectCard": {
-    "stars": "Stars",
-    "noDescription": "No description"
+  "RepositoryInput": {
+    "label": "GitHub Repository URL",
+    "placeholder": "https://github.com/owner/repository",
+    "enterUrl": "Please enter a GitHub repository URL",
+    "invalidUrl": "Please enter a valid GitHub repository URL",
+    "startAnalysis": "Start Analysis",
+    "analyzing": "Analyzing...",
+    "supportedRepos": "Supports public GitHub repositories, for example:"
   },
   "AnalyzePage": {
     "title": "Shuyi - AI Code Analysis",
@@ -39,6 +44,15 @@
       "analyzing": "Analyzing",
       "completed": "Completed"
     }
+  },
+  "analysisProgress": {
+    "generatingOverview": "AI Analysis - Generating Project Overview",
+    "analyzingDependencies": "AI Analysis - Analyzing Project Dependencies",
+    "identifyingCoreFeatures": "AI Analysis - Identifying Core Features",
+    "creatingAnalysisPlan": "AI Analysis - Creating Analysis Plan",
+    "writingAnalysisDocs": "AI Analysis - Writing Analysis Documents",
+    "writingDocFailed": "AI Analysis - Failed to Write Document",
+    "schedulingTasks": "AI Analysis - Scheduling Analysis Tasks"
   },
   "AnalysisPage": {
     "loading": "Loading analysis results...",
