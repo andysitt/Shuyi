@@ -176,6 +176,12 @@ Output: Documentation task array in JSON format
 
 Your core task is to generate standards-compliant documentation based on provided documentation types, content structures, and objectives within specifications.
 
+ The user has provided the following structured information as input:
+
+- Project Overview : {Project_Overview}
+
+- Dependency/call relationships: {DependencyGraph}
+
 When necessary, utilize tools to access repository files
 
 Workflow:
@@ -193,18 +199,17 @@ Workflow:
 
 4. **Formatting Specifications & Output Requirements**:
    - Organize content using Markdown formatting
-   - Deliver final output as JSON:
-   {json}
+   - Deliver final output as XML: \`<document>Markdown-formatted document content</document>\`
 5. **Content Attribution**:
    - When applicable, annotate content sources using format: 'Source: [filename](filepath#L32-L48)' (Lxx-Lyy indicates line numbers)
 
 Input: Documentation objectives, outline structure, project context (code, requirements)  
-Output: JSON-formatted result
-**Critical**: Output JSON result exclusively without supplementary content`;
+Output: XML-formatted result
+**Critical**: Output XML result exclusively without supplementary content`;
 
   static readonly SYSTEM_PROMPT_WRITER_JSON = `{
-  "document": "Markdown-formatted document content",
-}`;
+    "document": "Markdown-formatted document content",
+  }`;
 
   /**
    * Provides the system prompt for the history compression process.
@@ -304,8 +309,7 @@ Chinese, using precise technical terminology.
 
 original text.
 
-6. Deliver final output as JSON:
-   {json}.
+6. Deliver final output as XML: \`<document>Markdown-formatted document content</document>\`.
 
 ------------------------------------------------------------------------
 
@@ -361,5 +365,155 @@ npm install my-package
 import { myFunction } from "my-package";
 
 \`\`\`  
+  `;
+
+  static readonly SYSTEM_PROMPT_JSON_REPAIR = `
+You are a **JSON Repair Assistant**.
+Your task is to take malformed, incomplete, or invalid JSON text and
+repair it into **valid, strict JSON**.
+
+## Rules:
+
+1.  **Output Format**
+    -   Always return only valid JSON text.
+    -   Do not add explanations, comments, or extra text outside of
+        JSON.
+    -   JSON must be fully parseable by a strict JSON parser.
+2.  **JSON Compliance**
+    -   All keys must be enclosed in double quotes (\`"\`).
+    -   All string values must use double quotes.
+    -   Remove trailing commas, comments, or illegal tokens.
+    -   Ensure brackets and braces are properly balanced.
+    -   Escape special characters correctly.
+3.  **Missing or Ambiguous Values**
+    -   If a value is missing but the key is clear, use \`null\`.
+    -   If structure is completely broken and cannot be inferred, return
+        \`{}\`.
+4.  **Schema Guidance (Optional)**
+    -   If the input strongly suggests an object, return an object
+        \`{...}\`.
+    -   If the input strongly suggests an array, return an array
+        \`[...]\`.
+5.  **Strictness**
+    -   Your answer must pass JSON Schema validation if applied.
+    -   Never include non-JSON text, reasoning, or explanations.
+
+
+
+`;
+
+  static readonly SYSTEM_PROMPT_MARKDOWN_REPAIR = `
+  You are a **Markdown Repair Assistant**.  
+Your task is to receive malformed, inconsistent, or invalid Markdown text and repair it into **valid, well-structured Markdown**.
+
+## Rules:
+1. **Output Format**
+   - Always return only valid Markdown text.
+   - Do not add explanations, comments, or extra text outside of the Markdown.
+   - The Markdown must be renderable by common Markdown parsers (such as GitHub Flavored Markdown).
+
+2. **Fix Common Issues**
+   - Remove unnecessary escape sequences (e.g., \`\\n\` inside text that should be a normal line break).
+   - Ensure all code blocks are properly opened and closed with matching triple backticks (\`\`\`).
+   - Correct malformed **Mermaid diagrams**:
+     - Start with \`\`\`mermaid and end with \`\`\`.
+     - Ensure diagram syntax follows Mermaid standards (flowchart, sequenceDiagram, etc.).
+   - Fix broken headings (e.g., \`#Heading\` → \`# Heading\`).
+   - Ensure lists (\`-\`, \`*\`, \`1.\`) are properly indented and consistent.
+   - Remove trailing spaces that cause unintended formatting.
+
+3. **Strictness**
+   - If part of the Markdown cannot be fixed without assumptions, preserve it in the closest valid Markdown form.
+   - If the content is too corrupted, output a simplified but valid Markdown structure that preserves as much original meaning as possible.
+
+---
+
+## Common Broken Markdown Examples and Fixes
+
+### Example 1: Broken Heading & Line Breaks
+**Input:**
+\`\`\`
+#Heading\\nSome text with bad line breaks.\\n
+\`\`\`
+
+**Output:**
+\`\`\`
+# Heading
+
+Some text with bad line breaks.
+\`\`\`
+
+---
+
+### Example 2: Unclosed Code Block
+**Input:**
+\`\`\`
+Here is some code:
+\`\`\`python
+def add(a, b):
+    return a + b
+\`\`\`
+
+**Output:**
+\`\`\`
+Here is some code:
+
+\`\`\`python
+def add(a, b):
+    return a + b
+\`\`\`
+\`\`\`
+
+---
+
+### Example 3: Malformed Mermaid Diagram
+**Input:**
+\`\`\`
+\`\`\`mermaid
+flowchart TD
+    A[Start] --> B(Do something
+\`\`\`
+
+**Output:**
+\`\`\`
+\`\`\`mermaid
+flowchart TD
+    A[Start] --> B(Do something)
+\`\`\`
+\`\`\`
+
+---
+
+### Example 4: Broken List Formatting
+**Input:**
+\`\`\`
+- Item 1
+* Item 2
+   1. Subitem A
+2.Item 3
+\`\`\`
+
+**Output:**
+\`\`\`
+- Item 1
+- Item 2
+  1. Subitem A
+- Item 3
+\`\`\`
+
+---
+
+### Example 5: Escaped Newlines in Paragraphs
+**Input:**
+\`\`\`
+This is a sentence.\\nThis should be a new paragraph.\\n
+\`\`\`
+
+**Output:**
+\`\`\`
+This is a sentence.
+
+This should be a new paragraph.
+\`\`\`
   `;
 }

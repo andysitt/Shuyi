@@ -18,33 +18,6 @@ import { DocsManager } from './docs-manager';
 import { analyzeStructure, analyzeDependencies, analyzeCodeQuality } from './analysis-tools';
 import { progressManager } from './progress-manager';
 
-function safeJsonParse(str: string) {
-  // 1. 找到第一个 "{" 和最后一个 "}"
-  const start = str.indexOf('{');
-  const end = str.lastIndexOf('}');
-  if (start === -1 || end === -1 || start >= end) {
-    console.log('=========================json parse failed:', str);
-    throw new Error('输入中找不到合法的 JSON 包裹符号 { ... }');
-  }
-
-  // 2. 裁剪出 JSON 主体
-  let jsonStr = str.slice(start, end + 1);
-
-  // // 3. 替换未转义的换行符
-  // jsonStr = jsonStr.replace(/(?<!\\)\r?\n/g, '\\n');
-
-  // 4. 尝试解析
-  try {
-    // 第一次尝试
-    return JSON.parse(jsonStr);
-  } catch (e) {
-    // 记录下失败的数据
-    console.log('=========================json parse failed:', jsonStr);
-    // const fixed = str.replace(/(?<!\\)?/g, '\\n');
-    return JSON.parse(jsonStr);
-  }
-}
-
 // 分析协调器
 export class AnalysisOrchestrator {
   private sessionManager: SessionManager;
@@ -83,13 +56,13 @@ export class AnalysisOrchestrator {
     const session = await this.sessionManager.createSession('full_analysis', repositoryPath);
 
     try {
-      onProgress?.({ stage: '分析结构信息', progress: 20 });
+      onProgress?.({ stage: '分析结构信息', progress: 10 });
       const structure = await this.analyzeStructure(repositoryPath);
-      onProgress?.({ stage: '分析依赖信息', progress: 30 });
+      onProgress?.({ stage: '分析依赖信息', progress: 20 });
       const dependencies = await this.analyzeDependencies(repositoryPath);
-      onProgress?.({ stage: '分析代码质量', progress: 40 });
+      onProgress?.({ stage: '分析代码质量', progress: 25 });
       const codeQuality = await this.analyzeCodeQuality(repositoryPath);
-      onProgress?.({ stage: '开始 AI 智能分析', progress: 45 });
+      onProgress?.({ stage: '开始 AI 智能分析', progress: 28 });
       await this.performLLMAnalysis(repositoryUrl, onProgress);
       const result = this.buildFinalResult(repositoryMetadata, structure, dependencies, codeQuality, '');
       return result;
@@ -127,7 +100,7 @@ Only output JSON.`,
         throw new Error('Agent failed to generate project overview');
       }
 
-      const overview = safeJsonParse(result.content);
+      const overview = await this.safeJsonParse(result.content);
 
       return overview;
     } catch (error) {
@@ -163,7 +136,7 @@ Note:
         throw new Error('Agent failed to analyze dependencies');
       }
 
-      return safeJsonParse(result.content);
+      return await this.safeJsonParse(result.content);
     } catch (error) {
       console.error('Error in runTask2_analyzeDependencies:', error);
       throw new Error(`Task 2 failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -200,7 +173,7 @@ Only output JSON.`,
         throw new Error('Agent failed to identify core features');
       }
 
-      return safeJsonParse(result.content);
+      return await this.safeJsonParse(result.content);
     } catch (error) {
       console.error('Error in runTask3_identifyCoreFeatures:', error);
       throw new Error(`Task 3 failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -233,44 +206,41 @@ Only output JSON.`,
           Output_Example: PromptBuilder.SYSTEM_PROMPT_SCHEDULER_JSON,
         },
         withEnv: true, // withEnv is important to give context to the agent
+        jsonOutput: true,
       });
 
       if (!plannerResult.success) {
         throw new Error(`Failed to create analysis plan: ${plannerResult.error}`);
       }
       const plan = plannerResult.content;
-
-      // 2. 创建任务调度链
-      onProgress?.({ stage: 'AI智能分析-分解分析任务', progress: 70 });
       console.log('------plan', plan);
-      const schedulerResult = await agent.execute({
-        // actionPrompt: `请根据以下文档编写计划来生成一份文档编写任务列表，以下是具体的计划
-        actionPrompt: `Based on the following documentation plan, please generate a comprehensive list of documentation tasks. Below are the specific plan details.
-------------------------------
-{plan}`,
-        actionPromptParams: { plan },
-        rolePrompt: PromptBuilder.SYSTEM_PROMPT_SCHEDULER,
-        rolePromptParams: { json: PromptBuilder.SYSTEM_PROMPT_SCHEDULER_JSON },
-        jsonOutput: true, // Ensure JSON output
-        withEnv: false,
-        withTools: false,
-      });
+      //       // 2. 创建任务调度链
+      //       onProgress?.({ stage: 'AI智能分析-分解分析任务', progress: 70 });
+      //       console.log('------plan', plan);
+      //       const schedulerResult = await agent.execute({
+      //         // actionPrompt: `请根据以下文档编写计划来生成一份文档编写任务列表，以下是具体的计划
+      //         actionPrompt: `Based on the following documentation plan, please generate a comprehensive list of documentation tasks. Below are the specific plan details.
+      // ------------------------------
+      // {plan}`,
+      //         actionPromptParams: { plan },
+      //         rolePrompt: PromptBuilder.SYSTEM_PROMPT_SCHEDULER,
+      //         rolePromptParams: { json: PromptBuilder.SYSTEM_PROMPT_SCHEDULER_JSON },
+      //         jsonOutput: true, // Ensure JSON output
+      //         withEnv: false,
+      //         withTools: false,
+      //       });
 
-      if (!schedulerResult.success) {
-        throw new Error(`Failed to create task list: ${schedulerResult.error}`);
-      }
+      //       if (!schedulerResult.success) {
+      //         throw new Error(`Failed to create task list: ${schedulerResult.error}`);
+      //       }
 
-      const tasksResult = JSON.parse(schedulerResult.content);
+      const tasksResult = await this.safeJsonParse(plan);
       console.log('-----tasksResult', tasksResult);
       const taskList = (tasksResult as any).document_tasks;
 
       if (Array.isArray(taskList)) {
         const repositoryUrlEncoded = repositoryUrl.replaceAll('http://', '').replaceAll('https://', '');
         taskList.unshift({
-          // title: 'overview',
-          // goal: '对当前项目进行简要介绍',
-          // outline: '按当前项目内容自由发挥',
-          // targetReader: '项目的目标用户',
           title: 'Overview',
           goal: 'Provide a concise introduction to the current project',
           outline: "Flexibly structure based on the project's actual content",
@@ -281,19 +251,20 @@ Only output JSON.`,
         let countProgress = 0;
         const writePromises = taskList.map(async (task, index) => {
           try {
-            const result = await this.writer(task);
+            const result = await this.writer(task, overview, dependencies);
             const cnResult = await this.translator(result);
+            const repairedCNDocument = await this.markdownRepair(cnResult);
             await DocsManager.saveDoc(repositoryUrlEncoded, task.title.replaceAll(' ', ''), result, Language.EN);
             await DocsManager.saveDoc(
               repositoryUrlEncoded,
               cnTitleList[index].replaceAll(' ', ''),
-              cnResult,
+              repairedCNDocument,
               Language.ZH_CN,
             );
             countProgress += 1;
             onProgress?.({
               stage: 'AI智能分析-编写分析文档',
-              progress: 80 + Math.floor(((countProgress + 1) / taskList.length) * 20),
+              progress: 70 + Math.floor(((countProgress + 1) / taskList.length) * 30),
             });
             return { success: true, task };
           } catch (error) {
@@ -338,7 +309,11 @@ Only output JSON.`,
   }
 
   // 执行具体编写任务 - 此方法保持不变，因为它需要一个具备工具使用能力的完整Agent
-  private async writer(task: { title: string; goal: string; outline: string; targetReader: string }) {
+  private async writer(
+    task: { title: string; goal: string; outline: string; targetReader: string },
+    overview: ProjectOverview,
+    dependencies: DependencyGraph,
+  ) {
     // const actionPrompt = `结合当前仓库中的代码，根据以下要求来编写一篇文档
     // ------------------------------
     // ## 标题
@@ -369,7 +344,7 @@ Only output JSON.`,
       actionPrompt,
       actionPromptParams: { ...task },
       rolePrompt: PromptBuilder.SYSTEM_PROMPT_WRITER,
-      rolePromptParams: { json: PromptBuilder.SYSTEM_PROMPT_WRITER_JSON },
+      rolePromptParams: { Project_Overview: JSON.stringify(overview), DependencyGraph: JSON.stringify(dependencies) },
       jsonOutput: true,
       withEnv: true,
     });
@@ -377,9 +352,62 @@ Only output JSON.`,
       throw new Error(`Failed to create doc ${task.title}: ${result.error}`);
     }
 
-    const docResult = JSON.parse(result.content);
-    console.log('-----docResult', docResult);
-    return (docResult as any).document;
+    const document = this.parseDocumentContent(result.content);
+    const repairedDocument = await this.markdownRepair(document);
+    return repairedDocument;
+  }
+
+  /**
+   * 解析 <document> 标签中的内容
+   * @param content 包含 <document> 标签的字符串
+   * @returns 解析出的文档内容
+   */
+  private parseDocumentContent(content: string): string {
+    try {
+      // 处理可能存在的前后空白字符和特殊字符
+      const trimmedContent = content.trim();
+
+      // 尝试解析 <document>Markdown-formatted document content</document> 格式
+      // 使用正则表达式提取 <document> 标签中的内容
+      const documentRegex = /<document>([\s\S]*?)<\/document>/;
+      const match = trimmedContent.match(documentRegex);
+
+      if (match && match[1] !== undefined) {
+        // 成功匹配到 <document> 标签中的内容
+        return match[1].trim();
+      }
+
+      // 如果没有找到 <document> 标签，但内容看起来像是文档内容，则直接返回
+      // 这种情况用于处理可能没有完全按照格式返回的结果
+      if (trimmedContent.startsWith('#') || trimmedContent.startsWith('<') || trimmedContent.startsWith('##')) {
+        return trimmedContent;
+      }
+
+      // 尝试查找可能不完整的标签格式
+      if (trimmedContent.includes('<document>')) {
+        const startIndex = trimmedContent.indexOf('<document>') + 10; // '<document>'.length
+        let endIndex = trimmedContent.indexOf('</document>');
+
+        // 如果没有找到结束标签，则取从开始标签到内容末尾的所有内容
+        if (endIndex === -1) {
+          return trimmedContent.substring(startIndex).trim();
+        }
+
+        return trimmedContent.substring(startIndex, endIndex).trim();
+      }
+
+      // 如果内容包含明显的 Markdown 格式特征，也直接返回
+      if (trimmedContent.includes('```') || trimmedContent.includes('**') || trimmedContent.includes('* ')) {
+        return trimmedContent;
+      }
+
+      // 最后的兜底方案：返回原始内容（去掉首尾空白）
+      return trimmedContent;
+    } catch (error) {
+      console.error('解析 document 内容时出错:', error);
+      // 出错时返回原始内容（去掉首尾空白）
+      return content.trim();
+    }
   }
 
   private async translator(content: string): Promise<string> {
@@ -394,10 +422,9 @@ Only output JSON.`,
       actionPromptParams: { content },
       rolePrompt: PromptBuilder.SYSTEM_PROMPT_TRANS_TO_CHINESE,
       rolePromptParams: {
-        json: PromptBuilder.SYSTEM_PROMPT_WRITER_JSON,
         example: PromptBuilder.SYSTEM_PROMPT_TRANS_TO_CHINESE_EXP,
       },
-      jsonOutput: true,
+      jsonOutput: false,
       withEnv: false,
       withTools: false,
     });
@@ -405,11 +432,75 @@ Only output JSON.`,
       throw new Error(`Failed to trans doc to : ${result.error}`);
     }
 
-    const docResult = JSON.parse(result.content);
-    console.log('-----docResult', docResult);
-    return (docResult as any).document;
+    const document = this.parseDocumentContent(result.content);
+    return document;
   }
 
+  private async safeJsonParse(str: string) {
+    // 1. 找到第一个 "{" 和最后一个 "}"
+    const start = str.indexOf('{');
+    const end = str.lastIndexOf('}');
+    if (start === -1 || end === -1 || start >= end) {
+      console.log('=========================json parse failed:', str);
+      throw new Error('输入中找不到合法的 JSON 包裹符号 { ... }');
+    }
+
+    // 2. 裁剪出 JSON 主体
+    let jsonStr = str.slice(start, end + 1);
+
+    // 4. 尝试解析
+    try {
+      // 第一次尝试
+      return JSON.parse(jsonStr);
+    } catch (e) {
+      // 记录下失败的数据
+      console.log('=========================json parse failed, try ai repair:');
+      const repairedStr = await this.jsonRepair(jsonStr);
+      return repairedStr;
+    }
+  }
+
+  private async jsonRepair(content: string): Promise<string> {
+    const actionPrompt = `
+    Please Repair the following content
+    -----------------------------------
+  {content}
+    `;
+    const agent = new Agent(this.config.llmConfig, this.basePath);
+    const result = await agent.execute({
+      actionPrompt,
+      actionPromptParams: { content },
+      rolePrompt: PromptBuilder.SYSTEM_PROMPT_JSON_REPAIR,
+      jsonOutput: false,
+      withEnv: false,
+      withTools: false,
+    });
+    if (!result.success) {
+      throw new Error(`Failed to trans doc to : ${result.error}`);
+    }
+    return result.content;
+  }
+
+  private async markdownRepair(content: string): Promise<string> {
+    const actionPrompt = `
+    Please Repair the following content
+    -----------------------------------
+  {content}
+    `;
+    const agent = new Agent(this.config.llmConfig, this.basePath);
+    const result = await agent.execute({
+      actionPrompt,
+      actionPromptParams: { content },
+      rolePrompt: PromptBuilder.SYSTEM_PROMPT_MARKDOWN_REPAIR,
+      jsonOutput: false,
+      withEnv: false,
+      withTools: false,
+    });
+    if (!result.success) {
+      throw new Error(`Failed to trans doc to : ${result.error}`);
+    }
+    return result.content;
+  }
   // 构建最终结果
   private async buildFinalResult(
     metadata: RepositoryMetadata,
