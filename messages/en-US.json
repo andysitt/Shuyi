@@ -64,6 +64,7 @@
     "share": "Share",
     "reanalyze": "Re-analyze",
     "back": "Back",
+    "export": "Export",
     "lastAnalyzed": "Last analyzed"
   },
   "AnalysisResults": {

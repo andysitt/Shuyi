@@ -3,5 +3,9 @@
   "cSpell.words": [
     "shijie",
     "Shuyi"
+  ],
+  "i18n-ally.localesPaths": [
+    "messages",
+    "app/i18n"
   ]
 }

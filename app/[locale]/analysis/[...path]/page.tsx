@@ -7,7 +7,7 @@ import { AnalysisResults } from '@/app/components/AnalysisResults';
 import { Button } from '@/app/components/ui/button';
 import { cn } from '@/app/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
-import { Github, Star, Code, ArrowLeft, RefreshCw, Share2, Clock } from 'lucide-react';
+import { Github, Star, Code, ArrowLeft, RefreshCw, Share2, Clock, Download } from 'lucide-react';
 import { Badge } from '@/app/components/ui/badge';
 import { IAnalysisResult } from '@/app/lib/db-access';
 import LanguageSwitcher from '@/app/components/LanguageSwitcher';
@@ -74,6 +74,33 @@ export default function AnalysisDetailPage() {
       await navigator.clipboard.writeText(window.location.href);
     } catch (err) {
       console.error('复制链接失败:', err);
+    }
+  };
+
+  const handleExportDocs = async () => {
+    if (!analysisData) return;
+    
+    try {
+      const repoPath = path.join('/');
+      // Get current locale
+      const locale = typeof window !== 'undefined' ? window.location.pathname.split('/')[1] : 'zh-CN';
+      const response = await fetch(`/api/analysis/export/${repoPath}?lang=${locale}`);
+      
+      if (!response.ok) {
+        throw new Error('导出失败');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${analysisData.metadata.name}-docs.zip`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('导出文档失败:', err);
     }
   };
 
@@ -156,6 +183,10 @@ export default function AnalysisDetailPage() {
               <Share2 className="w-4 h-4" />
               {t('share')}
             </Button> */}
+            <Button onClick={handleExportDocs} size="sm" className="flex items-center gap-2">
+              <Download className="w-4 h-4" />
+              {t('export')}
+            </Button>
             <Button onClick={handleReanalyze} size="sm" className="flex items-center gap-2">
               <RefreshCw className="w-4 h-4" />
               {t('reanalyze')}

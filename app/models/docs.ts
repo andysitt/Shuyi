@@ -55,7 +55,7 @@ export async function getMarkdownDocsByPathAndLang(projectPath: string, lang: st
     where: {
       project_path: projectPath,
       language: lang,
-      is_draft: true,
+      is_draft: false,
     },
   });
   return markdownDocs;
