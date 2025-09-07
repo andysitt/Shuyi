@@ -1,12 +1,15 @@
+// app/api/analyze/route.ts (更新版本)
 import { NextRequest, NextResponse } from 'next/server';
-
 import { GitHubClient } from '@/app/lib/github-client';
+import { GitLabClient } from '@/app/lib/gitlab-client';
 import { AnalysisOrchestrator } from '@/app/service/analysis-orchestrator';
 import { cacheManager } from '@/app/lib/cache-manager';
 import { TempManager } from '@/app/lib/temp-manager';
 import { DatabaseAccess } from '@/app/lib/db-access';
-import { AnalysisRequest, AnalysisResult } from '@/app/types';
+import { AnalysisRequest, AnalysisResult, RepositoryMetadata } from '@/app/types';
 import { progressManager } from '@/app/service/progress-manager';
+import { detectPlatform, parseRepositoryIdentifier } from '@/app/lib/platform-client';
+import { getGitHubConfig, getGitLabConfig } from '@/app/lib/config';
 
 export async function POST(request: NextRequest) {
   try {
@@ -71,31 +74,81 @@ export async function POST(request: NextRequest) {
 
         await updateProgress(10, '验证仓库', '正在验证仓库有效性...');
 
-        // 验证仓库
-        const githubClient = new GitHubClient();
-        const validation = await githubClient.validateRepository(repositoryUrl);
-
-        if (!validation.isValid) {
+        // 检测平台类型
+        const platform = await detectPlatform(repositoryUrl);
+        if (platform === 'unknown') {
           await progressManager.update(repositoryUrl, {
             status: 'failed',
-            details: validation.error,
+            details: '不支持的代码托管平台',
           });
           return;
         }
 
-        const { owner, repo } = validation;
-        await updateProgress(15, '获取元数据', '正在获取仓库元数据...');
+        let metadata: RepositoryMetadata;
+        let owner: string;
+        let repo: string;
+        let tempDirName: string;
 
-        // 获取仓库元数据
-        const metadata = await githubClient.getRepositoryMetadata(owner!, repo!);
+        if (platform === 'github') {
+          // GitHub处理逻辑
+          const githubClient = new GitHubClient(getGitHubConfig().token);
+          const validation = await githubClient.validateRepository(repositoryUrl);
+
+          if (!validation.isValid) {
+            await progressManager.update(repositoryUrl, {
+              status: 'failed',
+              details: validation.error,
+            });
+            return;
+          }
+
+          const { owner: ghOwner, repo: ghRepo } = validation;
+          owner = ghOwner!;
+          repo = ghRepo!;
+          tempDirName = `${owner}|${repo}`;
+
+          await updateProgress(15, '获取元数据', '正在获取仓库元数据...');
+          metadata = await githubClient.getRepositoryMetadata(owner, repo);
+        } else {
+          // GitLab处理逻辑
+          const gitlabConfig = getGitLabConfig();
+          const gitlabClient = new GitLabClient(gitlabConfig.token, gitlabConfig.host);
+          const validation = await gitlabClient.validateRepository(repositoryUrl);
+
+          if (!validation.isValid) {
+            await progressManager.update(repositoryUrl, {
+              status: 'failed',
+              details: validation.error,
+            });
+            return;
+          }
+
+          const projectId = validation.projectId!;
+          const projectPath = validation.projectPath!;
+          owner = projectPath;
+          repo = projectPath.split('/').pop() || 'unknown';
+          tempDirName = `gitlab-${projectId}`;
+
+          await updateProgress(15, '获取元数据', '正在获取项目元数据...');
+          metadata = await gitlabClient.getRepositoryMetadata(projectId);
+        }
+
         await updateProgress(20, '克隆仓库', '正在克隆仓库...');
 
         // 创建临时目录
-        const tempDir = tempManager.createTempDir(`${owner}|${repo}`);
+        const tempDir = tempManager.createTempDir(tempDirName);
 
         try {
           // 克隆仓库
-          await githubClient.cloneRepository(repositoryUrl, tempDir);
+          if (platform === 'github') {
+            const githubClient = new GitHubClient(getGitHubConfig().token);
+            await githubClient.cloneRepository(repositoryUrl, tempDir);
+          } else {
+            const gitlabConfig = getGitLabConfig();
+            const gitlabClient = new GitLabClient(gitlabConfig.token, gitlabConfig.host);
+            await gitlabClient.cloneRepository(repositoryUrl, tempDir);
+          }
+
           await updateProgress(30, '配置分析', '正在配置AI分析...');
 
           // 配置LLM分析
@@ -256,12 +309,12 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   return NextResponse.json({
     success: true,
-    message: 'GitHub仓库分析API已就绪',
+    message: '代码仓库分析API已就绪',
     endpoints: {
       POST: '/api/analyze',
     },
     example: {
-      repositoryUrl: 'https://github.com/owner/repository',
+      repositoryUrl: 'https://github.com/owner/repository 或 https://gitlab.com/group/project',
       analysisType: 'full',
     },
   });

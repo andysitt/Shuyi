@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app
 import { RepoSearcher } from '@/app/components/RepoSearcher';
 import { AnalysisProjectCard } from '@/app/components/AnalysisProjectCard';
 import LanguageSwitcher from '@/app/components/LanguageSwitcher';
+import { fetchRepositoryMetadata, parseRepositoryInfo } from '@/app/lib/platform-metadata';
 
 interface Project {
   id: string;
@@ -84,7 +85,7 @@ export default function Home() {
 
     try {
       // 1. Validate URL
-      const validationResponse = await fetch('/api/github/validate', {
+      const validationResponse = await fetch('/api/platform/validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url }),
@@ -105,15 +106,18 @@ export default function Home() {
       }
 
       // 3. Fetch metadata for unanalyzed project
-      const { owner, repo } = validationResult;
-      const metadataResponse = await fetch(`/api/github/metadata?owner=${owner}&repo=${repo}`);
-      const metadata = await metadataResponse.json();
+      const { platform, metadata, error } = await fetchRepositoryMetadata(url);
+      
+      if (error || !metadata) {
+        setError(error || '获取元数据失败');
+        setFilteredProjects(projects);
+        return;
+      }
 
-      const repoUrl = `https://github.com/${owner}/${repo}`;
       // Create a temporary project object
       const tempProject: Project = {
         id: 'temp-' + Date.now(), // Temporary ID
-        repositoryUrl: repoUrl,
+        repositoryUrl: url,
         name: metadata.name,
         description: metadata.description,
         stars: metadata.stars,
@@ -123,7 +127,7 @@ export default function Home() {
       };
 
       setFilteredProjects([tempProject]);
-      return repoUrl;
+      return url;
     } catch (error) {
       setError('An unexpected error occurred.');
     } finally {

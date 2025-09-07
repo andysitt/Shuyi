@@ -70,9 +70,34 @@ export function getLanguageFromExtension(filename: string): string {
   return languageMap[extension || ''] || 'Other';
 }
 
-export function isValidGitHubUrl(url: string): boolean {
-  const githubUrlPattern = /^(https?:\/\/)?(www\.)?github\.com\/([a-zA-Z0-9-]+)\/([a-zA-Z0-9-_.]+)(\/)?$/;
-  return githubUrlPattern.test(url);
+export async function isValidRepositoryUrl(url: string): Promise<boolean> {
+  try {
+    // 使用API接口验证仓库有效性
+    const response = await fetch('/api/platform/validate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ url }),
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      return result.isValid === true;
+    }
+    
+    // API调用失败时回退到基于URL模式的检测
+    const githubUrlPattern = /^(https?:\/\/)?(www\.)?github\.com\/([a-zA-Z0-9-]+)\/([a-zA-Z0-9-_.]+)(\/)?$/;
+    const gitlabUrlPattern = /^(https?:\/\/)?(.*gitlab\.[^\/]+|gitlab\.com)\/([a-zA-Z0-9-_]+\/)*([a-zA-Z0-9-_]+)\/([a-zA-Z0-9-_.]+)(\/)?$/;
+    
+    return githubUrlPattern.test(url) || gitlabUrlPattern.test(url);
+  } catch (error) {
+    // API调用失败时回退到基于URL模式的检测
+    const githubUrlPattern = /^(https?:\/\/)?(www\.)?github\.com\/([a-zA-Z0-9-]+)\/([a-zA-Z0-9-_.]+)(\/)?$/;
+    const gitlabUrlPattern = /^(https?:\/\/)?(.*gitlab\.[^\/]+|gitlab\.com)\/([a-zA-Z0-9-_]+\/)*([a-zA-Z0-9-_]+)\/([a-zA-Z0-9-_.]+)(\/)?$/;
+    
+    return githubUrlPattern.test(url) || gitlabUrlPattern.test(url);
+  }
 }
 
 export function extractRepoInfoFromUrl(url: string): { owner: string; repo: string } | null {

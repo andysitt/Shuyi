@@ -15,6 +15,10 @@ export interface RepositoryMetadata {
     message: string;
     date: Date;
   };
+  // GitLab特有字段
+  projectId?: number;
+  namespace?: string;
+  visibility?: string;
 }
 
 export interface RepositoryStructure {

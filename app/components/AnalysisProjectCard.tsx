@@ -6,9 +6,10 @@ import { Button } from '@/app/components/ui/button';
 import Link from 'next/link';
 import { Star, Code, Calendar } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { fetchRepositoryMetadata, parseRepositoryInfo } from '@/app/lib/platform-metadata';
 
 interface ProjectCardProps {
-  githubUrl: string;
+  githubUrl: string; // 为了向后兼容，保持原名
 }
 
 interface RepositoryMetadata {
@@ -40,17 +41,15 @@ export function AnalysisProjectCard({ githubUrl }: ProjectCardProps) {
 
         // If not analyzed, fetch metadata
         if (!analysisData.id) {
-          const match = githubUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
-          if (match) {
-            const [, owner, repo] = match;
-            const metadataResponse = await fetch(
-              `/api/github/metadata?owner=${owner}&repo=${repo.replace('.git', '')}`,
-            );
-            if (!metadataResponse.ok) {
-              throw new Error('Failed to fetch repository metadata');
-            }
-            const metadataData = await metadataResponse.json();
-            setMetadata(metadataData);
+          const { metadata, error } = await fetchRepositoryMetadata(githubUrl);
+          
+          if (error) {
+            setError(error);
+            return;
+          }
+          
+          if (metadata) {
+            setMetadata(metadata);
           }
         }
       } catch (err) {
@@ -88,8 +87,8 @@ export function AnalysisProjectCard({ githubUrl }: ProjectCardProps) {
   }
 
   if (analysis && analysis.id) {
-    // Analyzed
-    const repoPath = new URL(analysis.repository_url).pathname.substring(1);
+    // Analyzed - 使用URL编码支持多平台路径
+    const repoPath = encodeURIComponent(analysis.repository_url);
     return (
       <Card>
         <CardHeader>

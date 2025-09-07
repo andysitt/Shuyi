@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Loader2, Github, Search, AlertCircle } from 'lucide-react';
-import { isValidGitHubUrl } from '@/app/lib/utils';
+import { Loader2, Github, Gitlab, Search, AlertCircle } from 'lucide-react';
+import { isValidRepositoryUrl } from '@/app/lib/utils';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
@@ -23,6 +23,15 @@ export function RepositoryInput({ onRepositorySubmit, loading, error, defaultUrl
   const [url, setUrl] = useState(defaultUrl);
   const [validationError, setValidationError] = useState('');
 
+  const getRepositoryIcon = (url: string) => {
+    if (url.includes('github.com')) {
+      return <Github className="h-5 w-5 text-muted-foreground" />;
+    } else if (url.includes('gitlab.') || url.includes('gitlab.com')) {
+      return <Gitlab className="h-5 w-5 text-muted-foreground" />;
+    }
+    return <Search className="h-5 w-5 text-muted-foreground" />;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setValidationError('');
@@ -32,12 +41,27 @@ export function RepositoryInput({ onRepositorySubmit, loading, error, defaultUrl
       return;
     }
 
-    if (!isValidGitHubUrl(url || '')) {
-      setValidationError(t('invalidUrl'));
-      return;
-    }
+    try {
+      const isValid = await isValidRepositoryUrl(url || '');
+      if (!isValid) {
+        setValidationError(t('invalidUrl'));
+        return;
+      }
 
-    await onRepositorySubmit(url || '');
+      await onRepositorySubmit(url || '');
+    } catch (error) {
+      // API验证失败时回退到基于URL模式的检测
+      const githubUrlPattern = /^(https?:\/\/)?(www\.)?github\.com\/([a-zA-Z0-9-]+)\/([a-zA-Z0-9-_.]+)(\/)?$/;
+      const gitlabUrlPattern = /^(https?:\/\/)?(.*gitlab\.[^\/]+|gitlab\.com)\/([a-zA-Z0-9-_]+\/)*([a-zA-Z0-9-_]+)\/([a-zA-Z0-9-_.]+)(\/)?$/;
+      
+      const isValidPattern = githubUrlPattern.test(url || '') || gitlabUrlPattern.test(url || '');
+      if (!isValidPattern) {
+        setValidationError(t('invalidUrl'));
+        return;
+      }
+
+      await onRepositorySubmit(url || '');
+    }
   };
 
   return (
@@ -50,7 +74,7 @@ export function RepositoryInput({ onRepositorySubmit, loading, error, defaultUrl
             </Label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Github className="h-5 w-5 text-muted-foreground" />
+                {getRepositoryIcon(url || '')}
               </div>
               <Input
                 id="repository-url"
@@ -99,7 +123,7 @@ export function RepositoryInput({ onRepositorySubmit, loading, error, defaultUrl
               https://github.com/microsoft/vscode
             </Badge>
             <Badge variant="outline" className="text-xs">
-              https://github.com/torvalds/linux
+              https://gitlab.com/gitlab-org/gitlab
             </Badge>
           </div>
         </div>
